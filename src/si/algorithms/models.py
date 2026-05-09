@@ -5,7 +5,7 @@
 """
 import numpy as np
 from scipy.optimize import least_squares
-from core.optical_constants import OpticalConstants
+from si.algorithms.optical_constants import OpticalConstants
 
 class InterferenceModels:
     

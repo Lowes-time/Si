@@ -2,9 +2,14 @@
 
 1. 项目简介（软著申请定位）
 
-本项目旨在将数模比赛中针对 Si/SiC 半导体外延层厚度测量的核心原创算法，重构为一款具备完整图形界面（GUI）的正规桌面端软件。
+本项目旨在将数模比赛中针对 Si/SiC 半导体外延层厚度测量的核心原创算法，重构为一款具备完整 Web 交互界面的正规软件系统。
 核心目的： 满足中国计算机软件著作权「独立可运行、功能完整、独创性」的核心审核要求。
-设计思路： 将零散的参赛脚本重构为闭环式、可配置、通用化的完整软件，形成「数据导入 - 预处理 - 核心计算 - 结果分析 - 报告导出」的全流程闭环。
+设计思路： 采用前后端分离架构，将零散的参赛脚本重构为闭环式、可配置、通用化的完整软件，形成「数据导入 - 预处理 - 核心计算 - 结果分析 - 报告导出」的全流程闭环。后端负责物理模型运算与数据管理，前端提供可视化的交互与图表展示。
+
+技术架构：
+  - 后端：Python + FastAPI，提供 RESTful API 服务；
+  - 前端：Vue 3 + Vite + Element Plus + ECharts，浏览器访问；
+  - 通信：前后端通过 HTTP/JSON 交互，开发阶段前端通过 Vite Proxy 代理 API 请求。
 
 2. 核心功能与独创性亮点
 
@@ -83,85 +88,109 @@
 3. 目录结构与代码架构
 
 Si/
-├── main.py                # 启动主入口，初始化界面
-├── requirements.txt       # 第三方库依赖声明
-├── core/                  # 🌟 算法核心层 (软著代码提取重点)
-│   ├── preprocess.py      # 光谱预处理类
-│   ├── optical_constants.py # 材料常数计算类
-│   └── models.py          # 双光束与多光束干涉模型类
-├── ui/                    # 🖥️ GUI视图层
-│   └── main_window.py     # 界面排版与交互逻辑
-└── utils/                 # 🛠️ 通用工具层
-    ├── data_io.py         # 数据读写与校验类
-    ├── visualization.py   # 绘图类
-    └── report_gen.py      # 【待建】报告生成类
+├── pyproject.toml              # Python 项目配置（hatchling 构建）
+├── requirements.txt            # 第三方库依赖声明
+├── uv.lock                     # uv 依赖锁定文件
+├── sample_data.csv             # 示例光谱数据
+├── src/si/
+│   ├── main.py                 # FastAPI 应用入口与启动脚本
+│   ├── algorithms/             # 🌟 算法核心层 (软著代码提取重点)
+│   │   ├── preprocess.py       # 光谱预处理类
+│   │   ├── optical_constants.py # 材料常数计算类
+│   │   └── models.py           # 双光束与多光束干涉模型类
+│   └── backend/
+│       ├── config.py           # 应用配置（名称、版本、CORS 等）
+│       ├── exceptions.py       # 全局异常处理注册
+│       └── api/
+│           ├── data.py         # 数据上传与解析接口
+│           ├── preprocess.py   # 预处理调用接口
+│           └── calculation.py  # 膜厚计算与结果导出接口
+└── frontend/                   # 🖥️ 前端视图层
+    ├── .gitignore
+    ├── package.json
+    ├── package-lock.json
+    ├── vite.config.js          # Vite 配置（含 /api 代理到 127.0.0.1:8000）
+    ├── index.html
+    └── src/
+        ├── main.js             # 前端入口
+        ├── App.vue             # 主页面布局（四步向导式流程）
+        ├── api/
+        │   └── index.js        # 前端 HTTP 请求封装（axios）
+        └── components/
+            ├── DataImport.vue      # 数据导入面板
+            ├── PreprocessPanel.vue # 预处理参数设置面板
+            ├── CalculationPanel.vue # 膜厚反演与计算面板
+            ├── SpectrumChart.vue   # 光谱图表（ECharts）
+            └── ResultsLog.vue      # 结果日志展示
 
 
 4. 🚀 两人协作分工与 TODO List
 
-为了高效推进并保证代码接口统一，项目分为“算法内核开发”与“界面联调与闭环”两条线并行开发。
+为了高效推进并保证代码接口统一，项目分为“算法内核开发”与“后端接口及前端联调”两条线并行开发。
 
-👨‍💻 开发者 A：核心算法重构（重点负责 core 目录）
+👨‍💻 开发者 A：核心算法重构（重点负责 src/si/algorithms/ 目录）
 
 任务目标： 将原论文 Jupyter/Python 脚本中的核心物理数学模型“填空”到面向对象的框架中。
 
-[ ] 完善光学常数计算 (core/optical_constants.py)
+[ ] 完善光学常数计算 (src/si/algorithms/optical_constants.py)
 
 来源: 参考原文件 si多光束干涉.py 中的 n_sm 函数和 碳化硅多.ipynb。
 
 动作: 补全硅(Si)的 Sellmeier 公式和 SiC 的 Drude-Lorentz 完整参数逻辑。
 
-[ ] 补全多光束判定逻辑 (core/models.py)
+[ ] 补全多光束判定逻辑 (src/si/algorithms/models.py)
 
 来源: 参考原文件 判定模型硅.py 和 判定模型碳化硅.py。
 
 动作: 将振荡对比度、芬诺数、相干长度等4项判定指标封装进 detect_multi_beam 方法中。
 
-[ ] 接入 Airy 多光束反演与差分进化算法 (core/models.py)
+[ ] 接入 Airy 多光束反演与差分进化算法 (src/si/algorithms/models.py)
 
 来源: 参考原文件 si多光束干涉.py 中的 differential_evolution 求解部分。
 
 动作: 在 InterferenceModels 类中新增一个方法（如 optimize_multi_beam_thickness），输入与原双光束拟合接口保持一致（传入波长、反射率、初值厚度），输出字典 {'thickness_um': val, 'r_squared': val}。
 
-👨‍💻 开发者 B：UI交互增强与功能闭环（重点负责 ui 和 utils 目录）
+👨‍💻 开发者 B：后端 API 开发与前端联调（重点负责 src/si/backend/ 与 frontend/ 目录）
 
-任务目标： 负责界面对接，消除所有硬编码，实现软著极其看重的异常处理与导出功能。
+任务目标： 负责前后端接口对接，消除所有硬编码，实现软著极其看重的异常处理与导出功能。
 
-[ ] 界面参数配置化 (ui/main_window.py)
+[ ] 后端 API 接口完善 (src/si/backend/api/)
 
-动作: 在界面上增加“是否开启多光束校正”的复选框 (Checkbox) 和“迭代次数”等高级设置参数。
+动作: 在 data.py、preprocess.py、calculation.py 中完善 RESTful API 接口，确保与前端的数据契约一致。使用 Pydantic 模型校验输入输出。
 
-对接: 当用户点击计算时，根据复选框状态，通过 if/else 调用开发者 A 写的双光束或多光束优化接口。
+对接: 当用户点击计算时，前端根据配置通过 HTTP 请求调用后端对应的计算接口，后端再调用开发者 A 写的算法模块。
 
-[ ] 开发结果导出与报告生成 (utils/report_gen.py)
+[ ] 前端界面联调与功能闭环 (frontend/src/components/)
 
-动作: 新建该文件，开发 ReportGenerator 类。利用 pandas 将计算结果和残差保存为 .xlsx。
+动作: 在 Vue 组件中对接后端 API，实现数据上传、预处理参数配置、计算触发、结果展示与导出。确保异常时前端友好提示。
 
-进阶: (可选) 用 python-docx 或类似库将左侧的结果日志与右侧的图片打包生成一份 Word/PDF 实验报告。
+[ ] 开发结果导出与报告生成
+
+动作: 在后端 calculation.py 中完善结果导出接口，利用 pandas 将计算结果和残差保存为 .xlsx。进阶可选生成 Word/PDF 实验报告。
 
 [ ] 全局异常捕获与鲁棒性优化
 
-动作: 在 main_window.py 里的 calculate_thickness 等方法中加入 try...except Exception as e: 块。如果拟合不收敛或除零报错，通过 messagebox.showerror() 弹出友好提示，而不是让软件闪退。
+动作: 在后端 exceptions.py 中注册全局异常处理器，前端在 API 调用中加入错误处理。如果拟合不收敛或除零报错，返回友好的 JSON 错误信息并在前端弹窗提示，而不是让软件崩溃。
 
 5. ⚠️ 软著代码重构与提交规范 
 
 为了软著能一次性审核通过，我们在开发时必须遵守以下红线：
 
-绝对禁止硬编码路径： 代码里千万不能再出现 pd.read_csv("附件3")！所有的文件路径都必须由 UI 界面的 filedialog 获取并作为参数传给算法模块。
+绝对禁止硬编码路径： 代码里千万不能再出现 pd.read_csv("附件3")！所有的文件路径都必须由界面或 API 获取并作为参数传给算法模块。
 
 版权声明： 每一个 .py 文件的最顶部，必须添加以下注释（打包提交软著代码前加上即可）：
 
-# 软件名称：碳化硅与硅外延层厚度红外干涉光谱测量分析软件 V1.0
+# 软件名称：基于多光束干涉校正的半导体外延层厚度光谱反演软件 V1.0
 # 著作权人：XXX（填写你们的名称，与申请表完全一致）
 # 开发完成日期：202X年XX月XX日
 # 软件功能：半导体外延层厚度红外干涉光谱测量与分析
 # 版权所有，未经著作权人书面许可，不得复制、修改、分发本代码
 
 
-隔离第三方库： 绝对不要把第三方库（如 numpy, scipy 的源码）复制进我们的目录。我们的目录里只能有我们自己写的代码，依赖库全部写在 requirements.txt 中。
+隔离第三方库： 绝对不要把第三方库（如 numpy, scipy 的源码）复制进我们的目录。我们的目录里只能有我们自己写的代码，依赖库全部写在 requirements.txt 与 pyproject.toml 中。
 
 清理垃圾代码： 原来参赛时用来测试画图被注释掉的代码、随手打印的 print("111") 必须全部删掉，保持代码的高专业度。
 
-接口对接原则： A同学改 core，B同学改 ui。A在修改算法接口时，如果新增了必须的传入参数，请立刻在群里通知B同学在 ui 层加上对应的输入框和传参！
+接口对接原则： A同学改 algorithms，B同学改 backend 与 frontend。A在修改算法接口时，如果新增了必须的传入参数，请同步更新 backend/api/ 中的 Pydantic 模型，并通知B同学在前端加上对应的输入框和传参，确保前后端契约一致。
 
 预祝我们的《半导体外延层厚度光谱反演软件 V1.0》软著申请顺利通过！
