@@ -14,74 +14,90 @@
           <span class="version-badge">V1.0</span>
         </div>
       </div>
+      <div class="header-nav">
+        <el-tabs v-model="activeView" class="nav-tabs">
+          <el-tab-pane label="实时分析" name="analysis" />
+          <el-tab-pane label="历史记录" name="history" />
+        </el-tabs>
+      </div>
     </header>
     <div class="app-body">
-      <aside class="control-panel">
-        <div class="panel-scroll">
-          <el-collapse v-model="activePanels" class="control-collapse">
-            <el-collapse-item name="import">
-              <template #title>
-                <div class="step-title">
-                  <span class="step-num" :class="{ done: rawData }">
-                    <el-icon v-if="rawData"><CircleCheckFilled /></el-icon>
-                    <span v-else>1</span>
-                  </span>
-                  <span class="step-label">数据导入</span>
-                  <el-tag v-if="rawData" size="small" type="success" effect="plain">已完成</el-tag>
-                </div>
-              </template>
-              <DataImport @data-loaded="onDataLoaded" />
-            </el-collapse-item>
-            <el-collapse-item name="preprocess" :disabled="!rawData">
-              <template #title>
-                <div class="step-title">
-                  <span class="step-num" :class="{ done: processedData }">
-                    <el-icon v-if="processedData"><CircleCheckFilled /></el-icon>
-                    <span v-else>2</span>
-                  </span>
-                  <span class="step-label">预处理设置</span>
-                </div>
-              </template>
-              <PreprocessPanel
-                :raw-data="rawData"
-                @preprocessed="onPreprocessed"
-              />
-            </el-collapse-item>
-            <el-collapse-item name="calculate" :disabled="!rawData">
-              <template #title>
-                <div class="step-title">
-                  <span class="step-num" :class="{ done: calcResult }">
-                    <el-icon v-if="calcResult"><CircleCheckFilled /></el-icon>
-                    <span v-else>3</span>
-                  </span>
-                  <span class="step-label">膜厚反演</span>
-                </div>
-              </template>
-              <CalculationPanel
-                :raw-data="rawData"
-                @calculated="onCalculated"
-                @export="onExport"
-              />
-            </el-collapse-item>
-            <el-collapse-item name="results" :disabled="!calcResult">
-              <template #title>
-                <div class="step-title">
-                  <span class="step-num">4</span>
-                  <span class="step-label">分析结果</span>
-                </div>
-              </template>
-              <ResultsLog :log="resultLog" :result="calcResult" />
-            </el-collapse-item>
-          </el-collapse>
-        </div>
-      </aside>
-      <main class="chart-area">
-        <SpectrumChart
-          :raw-data="rawData"
-          :processed-data="processedData"
-          :calc-result="calcResult"
-        />
-      </main>
+      <!-- Analysis View -->
+      <template v-if="activeView === 'analysis'">
+        <aside class="control-panel">
+          <div class="panel-scroll">
+            <el-collapse v-model="activePanels" class="control-collapse">
+              <el-collapse-item name="import">
+                <template #title>
+                  <div class="step-title">
+                    <span class="step-num" :class="{ done: rawData }">
+                      <el-icon v-if="rawData"><CircleCheckFilled /></el-icon>
+                      <span v-else>1</span>
+                    </span>
+                    <span class="step-label">数据导入</span>
+                  </div>
+                </template>
+                <DataImport @data-loaded="onDataLoaded" />
+              </el-collapse-item>
+              <el-collapse-item name="preprocess" :disabled="!rawData">
+                <template #title>
+                  <div class="step-title">
+                    <span class="step-num" :class="{ done: processedData }">
+                      <el-icon v-if="processedData"><CircleCheckFilled /></el-icon>
+                      <span v-else>2</span>
+                    </span>
+                    <span class="step-label">预处理设置</span>
+                  </div>
+                </template>
+                <PreprocessPanel
+                  :raw-data="rawData"
+                  @preprocessed="onPreprocessed"
+                />
+              </el-collapse-item>
+              <el-collapse-item name="calculate" :disabled="!rawData">
+                <template #title>
+                  <div class="step-title">
+                    <span class="step-num" :class="{ done: calcResult }">
+                      <el-icon v-if="calcResult"><CircleCheckFilled /></el-icon>
+                      <span v-else>3</span>
+                    </span>
+                    <span class="step-label">膜厚反演</span>
+                  </div>
+                </template>
+                <CalculationPanel
+                  :raw-data="rawData"
+                  @calculated="onCalculated"
+                  @export="onExport"
+                  @save="onSaveRecord"
+                />
+              </el-collapse-item>
+              <el-collapse-item name="results" :disabled="!calcResult">
+                <template #title>
+                  <div class="step-title">
+                    <span class="step-num">4</span>
+                    <span class="step-label">分析结果</span>
+                  </div>
+                </template>
+                <ResultsLog :log="resultLog" :result="calcResult" />
+              </el-collapse-item>
+            </el-collapse>
+          </div>
+        </aside>
+        <main class="chart-area">
+          <SpectrumChart
+            :raw-data="rawData"
+            :processed-data="processedData"
+            :calc-result="calcResult"
+          />
+        </main>
+      </template>
+
+      <!-- History View -->
+      <template v-else>
+        <main class="database-view">
+          <DatabasePanel @retest="onRetest" />
+        </main>
+      </template>
     </div>
   </div>
 </template>
@@ -93,7 +109,9 @@ import PreprocessPanel from "./components/PreprocessPanel.vue";
 import CalculationPanel from "./components/CalculationPanel.vue";
 import ResultsLog from "./components/ResultsLog.vue";
 import SpectrumChart from "./components/SpectrumChart.vue";
-import { exportResult } from "./api/index.js";
+import DatabasePanel from "./components/DatabasePanel.vue";
+import { exportResult, saveRecord } from "./api/index.js";
+import { ElMessage } from "element-plus";
 
 export default {
   name: "App",
@@ -104,9 +122,11 @@ export default {
     CalculationPanel,
     ResultsLog,
     SpectrumChart,
+    DatabasePanel,
   },
   data() {
     return {
+      activeView: "analysis",
       rawData: null,
       processedData: null,
       calcResult: null,
@@ -115,6 +135,11 @@ export default {
     };
   },
   watch: {
+    activeView(val) {
+      if (val === 'analysis' && !this.rawData) {
+        this.activePanels = ['import'];
+      }
+    },
     rawData(val) {
       if (val) {
         const idx = this.activePanels.indexOf("import");
@@ -140,6 +165,14 @@ export default {
       this.processedData = null;
       this.calcResult = null;
       this.addLog(`数据加载完成: ${data.filename}，共 ${data.row_count} 行`);
+      this.$nextTick(() => { this.activePanels = ["preprocess"]; });
+    },
+    onRetest(data) {
+      this.rawData = data;
+      this.processedData = null;
+      this.calcResult = null;
+      this.activeView = 'analysis';
+      this.addLog(`已从历史记录加载复测数据: ${data.filename}`);
       this.$nextTick(() => { this.activePanels = ["preprocess"]; });
     },
     onPreprocessed(data) {
@@ -173,6 +206,27 @@ export default {
         this.addLog("结果已导出为 thickness_result.xlsx");
       } catch (e) {
         this.addLog("导出失败: " + e.message);
+      }
+    },
+    async onSaveRecord(material) {
+      if (!this.calcResult || !this.rawData) return;
+      try {
+        await saveRecord({
+          filename: this.rawData.filename,
+          material: material,
+          thickness_um: this.calcResult.thickness_um,
+          r_squared: this.calcResult.r_squared,
+          multi_beam_level: this.calcResult.multi_beam_level,
+          data_json: {
+            wavelength: this.calcResult.wavelength,
+            reflectance: this.calcResult.reflectance,
+            ref_fit: this.calcResult.ref_fit
+          }
+        });
+        ElMessage.success("数据已成功保存至数据库");
+        this.addLog("分析结果已存入本地数据库");
+      } catch (e) {
+        ElMessage.error("保存失败: " + e.message);
       }
     },
     addLog(msg) {
@@ -268,8 +322,33 @@ body {
   border-radius: 10px;
 }
 
+.header-nav {
+  margin-left: 48px;
+  flex: 1;
+}
+
+.nav-tabs :deep(.el-tabs__header) {
+  margin: 0;
+  border-bottom: none;
+}
+.nav-tabs :deep(.el-tabs__nav-wrap::after) {
+  display: none;
+}
+.nav-tabs :deep(.el-tabs__item) {
+  height: 56px;
+  line-height: 56px;
+  font-size: 15px;
+  font-weight: 500;
+}
+
 /* ===== Body Layout ===== */
 .app-body { flex: 1; display: flex; overflow: hidden; }
+
+.database-view {
+  flex: 1;
+  background: var(--color-bg-2);
+  overflow: hidden;
+}
 
 .control-panel {
   width: 400px;

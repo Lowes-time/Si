@@ -35,6 +35,9 @@ async def upload_spectrum_file(file: UploadFile = File(...)):
 
         # 数据清洗
         df = df.replace([np.inf, -np.inf], np.nan).dropna()
+        if df.empty:
+            return {"success": False, "error": "清洗后数据为空，请检查文件内容"}
+
         if df["reflectance"].max() > 2.0:
             df["reflectance"] = df["reflectance"] / 100.0
 

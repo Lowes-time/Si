@@ -66,10 +66,18 @@
           type="default"
           @click="$emit('export')"
           class="export-btn"
-          size="default"
         >
           <el-icon><Download /></el-icon>
-          导出 Excel 报告
+          Excel
+        </el-button>
+        <el-button
+          type="primary"
+          @click="$emit('save', material)"
+          class="save-btn"
+          plain
+        >
+          <el-icon><FolderAdd /></el-icon>
+          保存入库
         </el-button>
       </div>
     </transition>
@@ -77,14 +85,14 @@
 </template>
 
 <script>
-import { CircleCheckFilled, Cpu, Download } from "@element-plus/icons-vue";
+import { CircleCheckFilled, Cpu, Download, FolderAdd } from "@element-plus/icons-vue";
 import { calculate } from "../api/index.js";
 
 export default {
   name: "CalculationPanel",
-  components: { CircleCheckFilled, Cpu, Download },
+  components: { CircleCheckFilled, Cpu, Download, FolderAdd },
   props: { rawData: { type: Object, default: null } },
-  emits: ["calculated", "export"],
+  emits: ["calculated", "export", "save"],
   data() {
     return { material: "SiC", thetaDeg: 10.0, calculating: false, hasResult: false };
   },
@@ -157,8 +165,10 @@ export default {
   height: 40px; letter-spacing: 0.5px;
 }
 .export-row { display: flex; gap: 8px; }
+.export-btn, .save-btn {
+  flex: 1; border-radius: 8px; font-weight: 500;
+}
 .export-btn {
-  width: 100%; border-radius: 8px; font-weight: 500;
   border: 1px dashed #B8D4FF; color: var(--color-primary, #165DFF);
 }
 .export-btn:hover { border-color: var(--color-primary, #165DFF); background: #E8F3FF; }

@@ -26,3 +26,24 @@ export function calculate(params) {
 export function exportResult(params) {
   return api.post("/api/export", params, { responseType: "blob" });
 }
+
+// --- Records Management ---
+export const saveRecord = (data) => {
+  return api.post("/api/records/", data);
+};
+
+export const fetchRecords = (params) => {
+  return api.get("/api/records/", { params });
+};
+
+export const fetchRecordDetail = (id) => {
+  return api.get(`/api/records/${id}`);
+};
+
+export const deleteRecord = (id) => {
+  return api.delete(`/api/records/${id}`);
+};
+
+export const getReportUrl = (id) => {
+  return `/api/records/${id}/report`;
+};
