@@ -1,40 +1,40 @@
 # -*- coding: utf-8 -*-
-from sqlalchemy import Column, Integer, String, Float, DateTime, Text, ForeignKey
+"""
+数据库模型层：薄膜分析记录表 + 光学数据表
+用于存储半导体外延层厚度测量数据
+"""
+from sqlalchemy import Column, Integer, String, Float, DateTime, Text, ForeignKey, Index
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from si.backend.database import Base
 
-class Material(Base):
-    __tablename__ = "materials"
-    
-    id = Column(Integer, primary_key=True, index=True)
-    name = Column(String(50), unique=True, index=True)
-    description = Column(String(255), nullable=True)
-    
-    records = relationship("AnalysisRecord", back_populates="material")
 
-class AnalysisRecord(Base):
-    __tablename__ = "analysis_records"
+class FilmRecord(Base):
+    """薄膜分析记录表：存储每一次膜厚测量的核心数据"""
+    __tablename__ = "film_records"
 
     id = Column(Integer, primary_key=True, index=True)
-    name = Column(String(255), index=True, nullable=True)
-    calc_time = Column(DateTime, default=datetime.now)
-    material_id = Column(Integer, ForeignKey("materials.id"))
-    thickness_um = Column(Float)
-    r_squared = Column(Float)
-    multi_beam_level = Column(String(50))
-    meta_info = Column(Text, nullable=True)
+    film_code = Column(String(100), nullable=False, index=True)
+    material_type = Column(String(10), nullable=False)
+    thickness_um = Column(Float, nullable=True)
+    r_squared = Column(Float, nullable=True)
+    multi_beam_level = Column(String(50), nullable=True)
+    theta_deg = Column(Float, nullable=True)
+    notes = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.now, nullable=False)
 
-    material = relationship("Material", back_populates="records")
-    spectral_data = relationship("SpectralData", back_populates="record", cascade="all, delete-orphan")
+    optical_data = relationship("OpticalData", back_populates="record", cascade="all, delete-orphan")
 
-class SpectralData(Base):
-    __tablename__ = "spectral_data"
-    
+
+class OpticalData(Base):
+    """光学数据表：存储光谱数据点（波长、反射率、拟合值）"""
+    __tablename__ = "optical_data"
+
     id = Column(Integer, primary_key=True, index=True)
-    record_id = Column(Integer, ForeignKey("analysis_records.id", ondelete="CASCADE"), index=True)
-    wavelength = Column(Float, index=True)
-    reflectance = Column(Float)
+    record_id = Column(Integer, ForeignKey("film_records.id", ondelete="CASCADE"), index=True, nullable=False)
+    wavelength = Column(Float, nullable=False, index=True)
+    reflectance = Column(Float, nullable=False)
     fitted_reflectance = Column(Float, nullable=True)
-    
-    record = relationship("AnalysisRecord", back_populates="spectral_data")
+    seq_order = Column(Integer, default=0)
+
+    record = relationship("FilmRecord", back_populates="optical_data")

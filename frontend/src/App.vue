@@ -1,3 +1,8 @@
+<!--
+  软件名称：基于多光束干涉校正的半导体外延层厚度光谱反演系统 V1.0
+  软件功能：主应用组件，负责整体布局、流程控制和状态管理
+  描述：半导体薄膜厚度测量分析系统主界面，包含数据导入、预处理、膜厚反演和历史记录管理
+-->
 <template>
   <div class="app-container">
     <header class="app-header">
@@ -19,10 +24,21 @@
           <el-tab-pane label="实时分析" name="analysis" />
           <el-tab-pane label="历史记录" name="history" />
         </el-tabs>
+        <div class="header-actions">
+          <el-button-group>
+            <el-button size="default" @click="showHelp = true" class="action-btn">
+              <el-icon><QuestionFilled /></el-icon>
+              <span>帮助</span>
+            </el-button>
+            <el-button size="default" @click="showAbout = true" class="action-btn">
+              <el-icon><InfoFilled /></el-icon>
+              <span>关于</span>
+            </el-button>
+          </el-button-group>
+        </div>
       </div>
     </header>
     <div class="app-body">
-      <!-- Analysis View -->
       <template v-if="activeView === 'analysis'">
         <aside class="control-panel">
           <div class="panel-scroll">
@@ -49,10 +65,7 @@
                     <span class="step-label">预处理设置</span>
                   </div>
                 </template>
-                <PreprocessPanel
-                  :raw-data="rawData"
-                  @preprocessed="onPreprocessed"
-                />
+                <PreprocessPanel :raw-data="rawData" @preprocessed="onPreprocessed" />
               </el-collapse-item>
               <el-collapse-item name="calculate" :disabled="!rawData">
                 <template #title>
@@ -64,12 +77,7 @@
                     <span class="step-label">膜厚反演</span>
                   </div>
                 </template>
-                <CalculationPanel
-                  :raw-data="rawData"
-                  @calculated="onCalculated"
-                  @export="onExport"
-                  @save="onSaveRecord"
-                />
+                <CalculationPanel :raw-data="rawData" :processed-data="processedData" @calculated="onCalculated" @export="onExport" @save="onSaveRecord" />
               </el-collapse-item>
               <el-collapse-item name="results" :disabled="!calcResult">
                 <template #title>
@@ -84,21 +92,134 @@
           </div>
         </aside>
         <main class="chart-area">
-          <SpectrumChart
-            :raw-data="rawData"
-            :processed-data="processedData"
-            :calc-result="calcResult"
-          />
+          <SpectrumChart :raw-data="rawData" :processed-data="processedData" :calc-result="calcResult" />
         </main>
       </template>
-
-      <!-- History View -->
       <template v-else>
         <main class="database-view">
           <DatabasePanel @retest="onRetest" />
         </main>
       </template>
     </div>
+
+    <!-- 关于对话框 -->
+    <el-dialog v-model="showAbout" title="关于系统" width="550px" append-to-body>
+      <div class="about-content">
+        <div class="about-logo">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/>
+            <path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/>
+            <path d="M2 12h20"/>
+          </svg>
+        </div>
+        <h2>半导体薄膜厚度光学测量分析系统</h2>
+        <p class="version">Version 1.0</p>
+        <div class="about-info">
+          <p>基于多光束干涉校正的半导体外延层厚度光谱反演系统</p>
+          <ul>
+            <li>支持 8 种半导体材料</li>
+            <li>高精度光学薄膜厚度测量</li>
+            <li>实时数据可视化分析</li>
+            <li>历史记录管理</li>
+          </ul>
+        </div>
+        <div class="about-tech">
+          <span>技术栈: FastAPI + Vue3 + SQLAlchemy</span>
+        </div>
+      </div>
+    </el-dialog>
+
+    <!-- 帮助对话框 -->
+    <el-dialog v-model="showHelp" title="使用帮助" width="700px" append-to-body class="help-dialog">
+      <div class="help-content">
+        <div class="help-section">
+          <h3>一、数据导入</h3>
+          <p>系统支持三种数据导入方式：</p>
+          <ul>
+            <li><strong>文件上传</strong>：拖拽或点击上传 CSV/TXT/XLSX 格式的光谱数据文件</li>
+            <li><strong>示例数据</strong>：内置 SiC-15μm、SiC-30μm、Si-2μm 三种示例数据供演示使用</li>
+            <li><strong>手动输入</strong>：直接粘贴或输入波长和反射率数据（格式：波长,反射率）</li>
+          </ul>
+        </div>
+        
+        <div class="help-section">
+          <h3>二、数据范围选择</h3>
+          <p>导入数据后，可以在预处理面板中选择感兴趣的数据区间：</p>
+          <ul>
+            <li><strong>手动输入</strong>：在"波长范围"输入框中指定起止波长</li>
+            <li><strong>自动选择</strong>：系统可自动分析并选择最优拟合区间</li>
+            <li><strong>数据限制</strong>：最小需保留 30 个数据点以保证拟合精度</li>
+          </ul>
+        </div>
+
+        <div class="help-section">
+          <h3>三、材料选择与计算</h3>
+          <p>在膜厚反演面板中：</p>
+          <ul>
+            <li>选择对应的半导体基底材料（支持 8 种材料）</li>
+            <li>设置入射角（0-89°）</li>
+            <li>点击"执行厚度拟合与反演"进行计算</li>
+          </ul>
+        </div>
+
+        <div class="help-section">
+          <h3>四、结果保存与报告</h3>
+          <ul>
+            <li>计算完成后可点击"保存入库"将结果保存到数据库</li>
+            <li>点击"Excel"导出计算结果</li>
+            <li>在历史记录中可查看历史数据、重测和打印报告</li>
+          </ul>
+        </div>
+
+        <div class="help-section">
+          <h3>五、支持的材料</h3>
+          <div class="material-list">
+            <div class="material-item"><span class="mat-name">SiC</span><span class="mat-desc">碳化硅 - 功率器件、射频</span></div>
+            <div class="material-item"><span class="mat-name">Si</span><span class="mat-desc">硅 - IC衬底、太阳能</span></div>
+            <div class="material-item"><span class="mat-name">GaN</span><span class="mat-desc">氮化镓 - 蓝光LED</span></div>
+            <div class="material-item"><span class="mat-name">AlN</span><span class="mat-desc">氮化铝 - UVC LED</span></div>
+            <div class="material-item"><span class="mat-name">InP</span><span class="mat-desc">磷化铟 - 光通信</span></div>
+            <div class="material-item"><span class="mat-name">GaAs</span><span class="mat-desc">砷化镓 - 射频激光</span></div>
+            <div class="material-item"><span class="mat-name">ZnO</span><span class="mat-desc">氧化锌 - UV压电</span></div>
+            <div class="material-item"><span class="mat-name">C</span><span class="mat-desc">金刚石 - 高功率探测</span></div>
+          </div>
+        </div>
+
+        <div class="help-section">
+          <h3>六、数据来源与算法说明</h3>
+          <div class="algorithm-info">
+            <div class="algo-item">
+              <h4>材料光学常数</h4>
+              <p>所有半导体材料的折射率数据均来源于：</p>
+              <ul>
+                <li>公开发表的学术论文（如Peter Yu, "Fundamentals of Semiconductors"）</li>
+                <li>美国NIST（国家标准与技术研究院）光学常数数据库</li>
+                <li>Sellmeier方程经验公式（业界标准方法）</li>
+              </ul>
+            </div>
+            <div class="algo-item">
+              <h4>核心算法</h4>
+              <p>薄膜厚度反演采用以下成熟算法：</p>
+              <ul>
+                <li><strong>双光束干涉模型</strong>：基于薄膜光学原理的反射率计算</li>
+                <li><strong>Savitzky-Golay滤波</strong>：数据平滑去噪</li>
+                <li><strong>Levenberg-Marquardt优化</strong>：非线性最小二乘拟合</li>
+                <li><strong>干涉条纹对比度分析</strong>：多光束干涉等级判定</li>
+              </ul>
+            </div>
+            <div class="algo-item">
+              <h4>准确性保证</h4>
+              <ul>
+                <li>折射率公式经过实验验证</li>
+                <li>拟合算法采用工业级scipy优化库</li>
+                <li>R²指标评估拟合质量</li>
+                <li>支持置信区间估算</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    </el-dialog>
   </div>
 </template>
 
@@ -126,6 +247,8 @@ export default {
   },
   data() {
     return {
+      showAbout: false,
+      showHelp: false,
       activeView: "analysis",
       rawData: null,
       processedData: null,
@@ -136,8 +259,8 @@ export default {
   },
   watch: {
     activeView(val) {
-      if (val === 'analysis' && !this.rawData) {
-        this.activePanels = ['import'];
+      if (val === "analysis" && !this.rawData) {
+        this.activePanels = ["import"];
       }
     },
     rawData(val) {
@@ -164,28 +287,32 @@ export default {
       this.rawData = data;
       this.processedData = null;
       this.calcResult = null;
-      this.addLog(`数据加载完成: ${data.filename}，共 ${data.row_count} 行`);
+      const fileName = data.filename || data.film_code || "数据文件";
+      this.addLog("数据加载完成: " + fileName + "，共 " + data.row_count + " 行");
       this.$nextTick(() => { this.activePanels = ["preprocess"]; });
     },
     onRetest(data) {
       this.rawData = data;
       this.processedData = null;
       this.calcResult = null;
-      this.activeView = 'analysis';
-      this.addLog(`已从历史记录加载复测数据: ${data.filename}`);
+      this.activeView = "analysis";
+      const fileName = data.film_code || data.filename || "历史记录";
+      this.addLog("已从历史记录加载复测数据: " + fileName);
       this.$nextTick(() => { this.activePanels = ["preprocess"]; });
     },
     onPreprocessed(data) {
       this.processedData = data;
       this.calcResult = null;
-      this.addLog(`预处理完成: 检测到 ${data.peaks_wl?.length || 0} 个波峰, ${data.valleys_wl?.length || 0} 个波谷`);
+      const peaks = data.peaks_wl ? data.peaks_wl.length : 0;
+      const valleys = data.valleys_wl ? data.valleys_wl.length : 0;
+      this.addLog("预处理完成: 检测到 " + peaks + " 个波峰, " + valleys + " 个波谷");
     },
     onCalculated(result) {
       this.calcResult = result;
-      this.addLog(`初估厚度: ${result.init_thickness_um} μm`);
-      this.addLog(`干涉判定: ${result.multi_beam_level}`);
-      this.addLog(`拟合厚度: ${result.thickness_um} μm`);
-      this.addLog(`拟合优度 R²: ${result.r_squared}`);
+      this.addLog("初估厚度: " + result.init_thickness_um + " μm");
+      this.addLog("干涉判定: " + result.multi_beam_level);
+      this.addLog("拟合厚度: " + result.thickness_um + " μm");
+      this.addLog("拟合优度 R²: " + result.r_squared);
       this.$nextTick(() => { this.activePanels = ["results"]; });
     },
     async onExport() {
@@ -210,18 +337,27 @@ export default {
     },
     async onSaveRecord(material) {
       if (!this.calcResult || !this.rawData) return;
+      const filmCode = await this.promptFilmCode();
+      if (!filmCode) {
+        ElMessage.warning("已取消保存");
+        return;
+      }
       try {
+        const opticalData = this.calcResult.wavelength.map((wl, i) => ({
+          wavelength: wl,
+          reflectance: this.calcResult.reflectance[i],
+          fitted_reflectance: this.calcResult.ref_fit ? this.calcResult.ref_fit[i] : null,
+          seq_order: i
+        }));
         await saveRecord({
-          filename: this.rawData.filename,
-          material: material,
+          film_code: filmCode,
+          material_type: material,
           thickness_um: this.calcResult.thickness_um,
           r_squared: this.calcResult.r_squared,
           multi_beam_level: this.calcResult.multi_beam_level,
-          data_json: {
-            wavelength: this.calcResult.wavelength,
-            reflectance: this.calcResult.reflectance,
-            ref_fit: this.calcResult.ref_fit
-          }
+          theta_deg: this.calcResult.theta_deg || 10.0,
+          notes: "",
+          optical_data: opticalData
         });
         ElMessage.success("数据已成功保存至数据库");
         this.addLog("分析结果已存入本地数据库");
@@ -229,16 +365,38 @@ export default {
         ElMessage.error("保存失败: " + e.message);
       }
     },
+    promptFilmCode() {
+      return new Promise((resolve) => {
+        this.$prompt("请输入薄膜编号（如 SiC-15um-A）", "保存记录", {
+          confirmButtonText: "确定",
+          cancelButtonText: "取消",
+          inputPattern: /\S+/,
+          inputErrorMessage: "薄膜编号不能为空",
+          inputValue: this.generateDefaultFilmCode()
+        }).then(({ value }) => {
+          resolve(value);
+        }).catch(() => {
+          resolve(null);
+        });
+      });
+    },
+    generateDefaultFilmCode() {
+      const now = new Date();
+      const y = now.getFullYear();
+      const m = String(now.getMonth() + 1).padStart(2, "0");
+      const d = String(now.getDate()).padStart(2, "0");
+      const rand = Math.floor(Math.random() * 1000).toString().padStart(3, "0");
+      return "FILM-" + y + m + d + "-" + rand;
+    },
     addLog(msg) {
       const time = new Date().toLocaleTimeString();
-      this.resultLog.push(`[${time}] ${msg}`);
+      this.resultLog.push("[" + time + "] " + msg);
     },
   },
 };
 </script>
 
 <style>
-/* ===== Design Tokens ===== */
 :root {
   --color-primary: #165DFF;
   --color-primary-light: #E8F3FF;
@@ -261,182 +419,107 @@ export default {
 }
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
-
-body {
-  font-family: var(--font-family);
-  background: var(--color-bg-1);
-  color: var(--color-text-1);
-  -webkit-font-smoothing: antialiased;
-}
-
-/* ===== Scrollbar ===== */
+body { font-family: var(--font-family); background: var(--color-bg-1); color: var(--color-text-1); -webkit-font-smoothing: antialiased; }
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: #C9CDD4; border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: #A8ADB5; }
 
 .app-container { height: 100vh; display: flex; flex-direction: column; }
-
-/* ===== Header ===== */
-.app-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 24px;
-  height: 56px;
-  flex-shrink: 0;
-  background: var(--color-bg-2);
-  border-bottom: 1px solid var(--color-border);
-  box-shadow: var(--shadow-sm);
-  z-index: 10;
-}
-.header-left {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-.logo-icon {
-  width: 36px;
-  height: 36px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--color-primary);
-  border-radius: var(--radius-md);
-  color: #fff;
-}
+.app-header { display: flex; align-items: center; justify-content: space-between; padding: 0 24px; height: 56px; flex-shrink: 0; background: var(--color-bg-2); border-bottom: 1px solid var(--color-border); box-shadow: var(--shadow-sm); z-index: 10; }
+.header-left { display: flex; align-items: center; gap: 12px; }
+.logo-icon { width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; background: var(--color-primary); border-radius: var(--radius-md); color: #fff; }
 .logo-icon svg { width: 22px; height: 22px; }
 .header-text { display: flex; align-items: center; gap: 10px; }
-.header-text h1 {
-  font-size: 16px;
-  font-weight: 600;
-  color: var(--color-text-1);
-  letter-spacing: 0.5px;
-}
-.version-badge {
-  font-size: 11px;
-  font-weight: 500;
-  color: var(--color-primary);
-  background: var(--color-primary-light);
-  padding: 2px 8px;
-  border-radius: 10px;
-}
+.header-text h1 { font-size: 16px; font-weight: 600; letter-spacing: 0.5px; }
+.version-badge { font-size: 11px; font-weight: 500; color: var(--color-primary); background: var(--color-primary-light); padding: 2px 8px; border-radius: 10px; }
+.header-nav { margin-left: 48px; flex: 1; }
+.nav-tabs :deep(.el-tabs__header) { margin: 0; border-bottom: none; }
+.nav-tabs :deep(.el-tabs__nav-wrap::after) { display: none; }
+.nav-tabs :deep(.el-tabs__item) { height: 56px; line-height: 56px; font-size: 15px; font-weight: 500; }
 
-.header-nav {
-  margin-left: 48px;
-  flex: 1;
-}
-
-.nav-tabs :deep(.el-tabs__header) {
-  margin: 0;
-  border-bottom: none;
-}
-.nav-tabs :deep(.el-tabs__nav-wrap::after) {
-  display: none;
-}
-.nav-tabs :deep(.el-tabs__item) {
-  height: 56px;
-  line-height: 56px;
-  font-size: 15px;
-  font-weight: 500;
-}
-
-/* ===== Body Layout ===== */
 .app-body { flex: 1; display: flex; overflow: hidden; }
+.database-view { flex: 1; background: var(--color-bg-2); overflow: hidden; }
+.control-panel { width: 400px; flex-shrink: 0; background: var(--color-bg-2); border-right: 1px solid var(--color-border); display: flex; flex-direction: column; }
+.panel-scroll { flex: 1; overflow-y: auto; padding: 16px; }
 
-.database-view {
-  flex: 1;
-  background: var(--color-bg-2);
-  overflow: hidden;
-}
+.control-collapse { --el-collapse-header-height: 44px; --el-collapse-header-bg-color: transparent; --el-collapse-content-bg-color: transparent; border: none; }
+.control-collapse .el-collapse-item { margin-bottom: 8px; border: 1px solid var(--color-border) !important; border-radius: var(--radius-md) !important; overflow: hidden; transition: box-shadow 0.2s; }
+.control-collapse .el-collapse-item:hover { box-shadow: var(--shadow-sm); }
+.control-collapse .el-collapse-item__header { padding: 0 16px; font-size: 14px; border-bottom: 1px solid transparent; transition: background 0.2s; }
+.control-collapse .el-collapse-item__header:hover { background: var(--color-bg-1); }
+.control-collapse .el-collapse-item.is-active > .el-collapse-item__header { border-bottom-color: var(--color-border); }
+.control-collapse .el-collapse-item__wrap { border-top: none; }
+.control-collapse .el-collapse-item__content { padding: 16px; }
 
-.control-panel {
-  width: 400px;
-  flex-shrink: 0;
-  background: var(--color-bg-2);
-  border-right: 1px solid var(--color-border);
-  display: flex;
-  flex-direction: column;
-}
-.panel-scroll {
-  flex: 1;
-  overflow-y: auto;
-  padding: 16px;
-}
+.step-title { display: flex; align-items: center; gap: 10px; width: 100%; }
+.step-num { width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; background: var(--color-bg-1); color: var(--color-text-3); flex-shrink: 0; }
+.step-num.done { background: var(--color-success); color: #fff; }
+.step-label { font-weight: 500; flex: 1; text-align: left; }
 
-/* ===== Collapse ===== */
-.control-collapse {
-  --el-collapse-header-height: 44px;
-  --el-collapse-header-bg-color: transparent;
-  --el-collapse-content-bg-color: transparent;
-  border: none;
-}
-.control-collapse .el-collapse-item {
-  margin-bottom: 8px;
-  border: 1px solid var(--color-border) !important;
-  border-radius: var(--radius-md) !important;
-  overflow: hidden;
-  transition: box-shadow 0.2s;
-}
-.control-collapse .el-collapse-item:hover {
-  box-shadow: var(--shadow-sm);
-}
-.control-collapse .el-collapse-item__header {
-  padding: 0 16px;
-  font-size: 14px;
-  border-bottom: 1px solid transparent;
-  transition: background 0.2s;
-}
-.control-collapse .el-collapse-item__header:hover {
-  background: var(--color-bg-1);
-}
-.control-collapse .el-collapse-item.is-active > .el-collapse-item__header {
-  border-bottom-color: var(--color-border);
-}
-.control-collapse .el-collapse-item__wrap {
-  border-top: none;
-}
-.control-collapse .el-collapse-item__content {
-  padding: 16px;
-}
+.chart-area { flex: 1; min-width: 0; padding: 16px; overflow: hidden; background: var(--color-bg-1); }
 
-.step-title {
+.header-actions { display: flex; align-items: center; gap: 8px; margin-left: auto; }
+
+.about-content { text-align: center; padding: 20px; }
+.about-logo { width: 64px; height: 64px; background: linear-gradient(135deg, #165DFF 0%, #4080FF 100%); border-radius: 16px; display: flex; align-items: center; justify-content: center; margin: 0 auto 16px; color: white; }
+.about-logo svg { width: 40px; height: 40px; }
+.about-content h2 { font-size: 18px; font-weight: 600; margin: 0 0 8px; }
+.about-content .version { font-size: 13px; color: #86909C; margin-bottom: 20px; }
+.about-info { background: #F7F8FA; padding: 16px; border-radius: 8px; text-align: left; margin-bottom: 16px; }
+.about-info p { font-size: 13px; color: #4E5969; margin: 0 0 12px; }
+.about-info ul { margin: 0; padding-left: 20px; }
+.about-info li { font-size: 12px; color: #86909C; margin-bottom: 4px; }
+.about-tech { font-size: 11px; color: #C9CDD4; }
+
+.action-btn {
   display: flex;
   align-items: center;
-  gap: 10px;
-  width: 100%;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 13px;
 }
-.step-num {
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 12px;
-  font-weight: 600;
-  background: var(--color-bg-1);
-  color: var(--color-text-3);
-  flex-shrink: 0;
-}
-.step-num.done {
-  background: var(--color-success);
-  color: #fff;
-}
-.step-label {
-  font-weight: 500;
-  flex: 1;
-  text-align: left;
-}
+.action-btn .el-icon { margin-right: 4px; }
 
-/* ===== Chart Area ===== */
-.chart-area {
-  flex: 1;
-  min-width: 0;
-  padding: 16px;
-  overflow: hidden;
-  background: var(--color-bg-1);
+.help-dialog .help-content { padding: 10px 0; }
+.help-section { margin-bottom: 20px; }
+.help-section h3 { font-size: 15px; font-weight: 600; color: #1D2129; margin: 0 0 10px; padding-left: 10px; border-left: 3px solid #165DFF; }
+.help-section p { font-size: 13px; color: #4E5969; margin: 0 0 8px; }
+.help-section ul { margin: 0; padding-left: 20px; }
+.help-section li { font-size: 13px; color: #4E5969; line-height: 1.8; }
+.help-section li strong { color: #1D2129; }
+
+.material-list { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+.material-item { 
+  display: flex; 
+  align-items: center; 
+  gap: 10px; 
+  padding: 10px 12px; 
+  background: #F7F8FA; 
+  border-radius: 6px; 
 }
+.mat-name { 
+  font-weight: 600; 
+  color: #165DFF; 
+  background: #E8F3FF; 
+  padding: 2px 8px; 
+  border-radius: 4px; 
+  font-size: 12px; 
+}
+.mat-desc { font-size: 12px; color: #86909C; }
+
+.algorithm-info { display: flex; flex-direction: column; gap: 16px; }
+.algo-item {
+  background: #F7F8FA;
+  padding: 14px 16px;
+  border-radius: 8px;
+  border-left: 3px solid #165DFF;
+}
+.algo-item h4 { font-size: 14px; font-weight: 600; color: #1D2129; margin: 0 0 8px; }
+.algo-item p { font-size: 12px; color: #4E5969; margin: 0 0 8px; }
+.algo-item ul { margin: 0; padding-left: 18px; }
+.algo-item li { font-size: 12px; color: #4E5969; line-height: 1.7; }
 
 @media (max-width: 900px) {
   .app-body { flex-direction: column; }

@@ -1,37 +1,40 @@
+<!--
+  软件名称：基于多光束干涉校正的半导体外延层厚度光谱反演系统 V1.0
+  组件功能：膜厚反演计算面板
+  描述：材料选择、入射角设置、执行厚度拟合与反演计算
+-->
 <template>
   <div class="calculation-panel">
+    <!-- 数据范围信息 -->
+    <div v-if="effectiveData" class="data-range-info">
+      <el-icon><InfoFilled /></el-icon>
+      <span>拟合范围: {{ getRangeStart() }} - {{ getRangeEnd() }} μm</span>
+      <span class="point-count">({{ effectiveData.wavelength?.length || 0 }} 个点)</span>
+    </div>
+
     <!-- 材料选择 -->
     <div class="form-group">
       <label class="form-label">基底材料</label>
-      <div class="material-cards">
+      <div class="material-grid">
         <div
-          :class="['material-card', { active: material === 'SiC' }]"
-          @click="material = 'SiC'"
+          v-for="mat in materialOptions"
+          :key="mat.key"
+          :class="['material-card', { active: material === mat.key }]"
+          @click="material = mat.key"
         >
-          <div class="mc-icon">SiC</div>
+          <div class="mc-icon">{{ mat.formula }}</div>
           <div class="mc-info">
-            <div class="mc-name">碳化硅</div>
-            <div class="mc-desc">SiC 基底</div>
+            <div class="mc-name">{{ mat.name_cn }}</div>
+            <div class="mc-desc">{{ mat.desc }}</div>
           </div>
-          <el-icon v-if="material === 'SiC'" class="mc-check" :size="18"><CircleCheckFilled /></el-icon>
-        </div>
-        <div
-          :class="['material-card', { active: material === 'Si' }]"
-          @click="material = 'Si'"
-        >
-          <div class="mc-icon">Si</div>
-          <div class="mc-info">
-            <div class="mc-name">硅</div>
-            <div class="mc-desc">Si 基底</div>
-          </div>
-          <el-icon v-if="material === 'Si'" class="mc-check" :size="18"><CircleCheckFilled /></el-icon>
+          <el-icon v-if="material === mat.key" class="mc-check" :size="16"><CircleCheckFilled /></el-icon>
         </div>
       </div>
     </div>
 
     <!-- 入射角 -->
     <div class="form-group">
-      <label class="form-label">入射角</label>
+      <label class="form-label">入射角 (°)</label>
       <div class="angle-input-wrap">
         <el-input-number
           v-model="thetaDeg"
@@ -43,14 +46,13 @@
           size="large"
           class="angle-input"
         />
-        <span class="angle-unit">°</span>
       </div>
     </div>
 
     <!-- 操作按钮 -->
     <el-button
       type="primary"
-      :disabled="!rawData"
+      :disabled="!effectiveData"
       :loading="calculating"
       @click="doCalculate"
       class="action-btn"
@@ -70,9 +72,10 @@
           <el-icon><Download /></el-icon>
           Excel
         </el-button>
+
         <el-button
           type="primary"
-          @click="$emit('save', material)"
+          @click="handleSave"
           class="save-btn"
           plain
         >
@@ -85,31 +88,80 @@
 </template>
 
 <script>
-import { CircleCheckFilled, Cpu, Download, FolderAdd } from "@element-plus/icons-vue";
+import { CircleCheckFilled, Cpu, Download, FolderAdd, InfoFilled } from "@element-plus/icons-vue";
 import { calculate } from "../api/index.js";
+import { ElMessage } from "element-plus";
 
 export default {
   name: "CalculationPanel",
-  components: { CircleCheckFilled, Cpu, Download, FolderAdd },
-  props: { rawData: { type: Object, default: null } },
+  components: { CircleCheckFilled, Cpu, Download, FolderAdd, InfoFilled },
+  props: { 
+    rawData: { type: Object, default: null },
+    processedData: { type: Object, default: null }
+  },
   emits: ["calculated", "export", "save"],
   data() {
-    return { material: "SiC", thetaDeg: 10.0, calculating: false, hasResult: false };
+    return {
+      material: "SIC",
+      thetaDeg: 10.0,
+      calculating: false,
+      hasResult: false,
+      lastResult: null,
+      materialOptions: [
+        { key: "SIC", formula: "SiC", name_cn: "碳化硅", desc: "功率器件/射频" },
+        { key: "SI", formula: "Si", name_cn: "硅", desc: "IC/太阳能" },
+        { key: "GAN", formula: "GaN", name_cn: "氮化镓", desc: "蓝光LED" },
+        { key: "ALN", formula: "AlN", name_cn: "氮化铝", desc: "UVC LED" },
+        { key: "INP", formula: "InP", name_cn: "磷化铟", desc: "光通信" },
+        { key: "GAAS", formula: "GaAs", name_cn: "砷化镓", desc: "射频/激光" },
+        { key: "ZNO", formula: "ZnO", name_cn: "氧化锌", desc: "UV/压电" },
+        { key: "C", formula: "C", name_cn: "金刚石", desc: "高功率/探测" },
+      ]
+    };
+  },
+  computed: {
+    // 优先使用经过预处理/范围选择后的数据
+    effectiveData() {
+      if (this.processedData && this.processedData.wavelength) {
+        return this.processedData;
+      }
+      if (this.rawData && this.rawData.wavelength) {
+        return this.rawData;
+      }
+      return null;
+    }
   },
   methods: {
     async doCalculate() {
-      if (!this.rawData) return;
+      if (!this.effectiveData) {
+        ElMessage.warning("请先导入数据并执行预处理");
+        return;
+      }
+      
       this.calculating = true;
       this.hasResult = false;
       try {
+        // 优先使用预处理后的平滑数据(ref_smooth)，否则使用原始数据
+        const wlData = this.effectiveData.wavelength;
+        const refData = this.effectiveData.ref_smooth || this.effectiveData.reflectance;
+        
         const res = await calculate({
-          wavelength: this.rawData.wavelength,
-          reflectance: this.rawData.reflectance,
-          material: this.material, theta_deg: this.thetaDeg,
+          wavelength: wlData,
+          reflectance: refData,
+          material: this.material, 
+          theta_deg: this.thetaDeg,
         });
         if (res.data.success) {
           this.hasResult = true;
-          this.$emit("calculated", res.data.result);
+          this.lastResult = res.data.result;
+          this.lastResult.theta_deg = this.thetaDeg;
+          // 传递拟合数据范围信息
+          this.lastResult.fit_range = {
+            start: this.effectiveData.wl_range_start || this.effectiveData.wl_min || 0,
+            end: this.effectiveData.wl_range_end || this.effectiveData.wl_max || 0,
+            count: this.effectiveData.wavelength.length
+          };
+          this.$emit("calculated", this.lastResult);
           this.$message.success("厚度反演完成");
         } else {
           this.$message.error(res.data.error || "计算失败");
@@ -120,6 +172,31 @@ export default {
         this.calculating = false;
       }
     },
+    async handleSave() {
+      if (!this.lastResult) {
+        ElMessage.warning("请先执行计算");
+        return;
+      }
+      this.$emit("save", this.material, this.thetaDeg);
+    },
+    // 获取起始波长（确保 start <= end）
+    getRangeStart() {
+      if (!this.effectiveData) return '全部';
+      const start = this.effectiveData.wl_range_start ?? this.effectiveData.wl_min;
+      const end = this.effectiveData.wl_range_end ?? this.effectiveData.wl_max;
+      if (start == null) return '全部';
+      // 确保起始值 <= 结束值
+      return Math.min(start, end).toFixed(2);
+    },
+    // 获取结束波长（确保 start <= end）
+    getRangeEnd() {
+      if (!this.effectiveData) return '全部';
+      const start = this.effectiveData.wl_range_start ?? this.effectiveData.wl_min;
+      const end = this.effectiveData.wl_range_end ?? this.effectiveData.wl_max;
+      if (end == null) return '全部';
+      // 确保结束值 >= 起始值
+      return Math.max(start, end).toFixed(2);
+    }
   },
 };
 </script>
@@ -127,15 +204,41 @@ export default {
 <style scoped>
 .calculation-panel { display: flex; flex-direction: column; gap: 20px; }
 
+.data-range-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  background: #E8F3FF;
+  border: 1px solid #B8D4FF;
+  border-radius: 8px;
+  font-size: 12px;
+  color: #165DFF;
+}
+.data-range-info .el-icon { flex-shrink: 0; }
+.point-count { color: #86909C; margin-left: 4px; }
+
 .form-group { display: flex; flex-direction: column; gap: 8px; }
 .form-label { font-size: 13px; font-weight: 500; color: #4E5969; }
 
-/* 材料卡片 */
-.material-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.material-grid { 
+  display: grid; 
+  grid-template-columns: repeat(4, 1fr); 
+  gap: 8px; 
+}
+
 .material-card {
-  display: flex; align-items: center; gap: 10px;
-  padding: 12px; border: 1px solid #E5E6EB; border-radius: 8px;
-  cursor: pointer; transition: all 0.2s; position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 6px;
+  border: 1px solid #E5E6EB;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+  position: relative;
+  text-align: center;
 }
 .material-card:hover { border-color: #B8D4FF; background: #F7FAFF; }
 .material-card.active {
@@ -144,32 +247,49 @@ export default {
   box-shadow: 0 0 0 2px rgba(22,93,255,0.1);
 }
 .mc-icon {
-  width: 38px; height: 38px; border-radius: 8px;
-  background: #F0F5FF; color: var(--color-primary, #165DFF);
-  display: flex; align-items: center; justify-content: center;
-  font-size: 13px; font-weight: 700; flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  background: #F0F5FF;
+  color: var(--color-primary, #165DFF);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
 }
-.material-card.active .mc-icon { background: var(--color-primary, #165DFF); color: #fff; }
-.mc-info { flex: 1; }
-.mc-name { font-size: 14px; font-weight: 500; color: #1D2129; }
-.mc-desc { font-size: 11px; color: #86909C; margin-top: 1px; }
-.mc-check { color: var(--color-primary, #165DFF); flex-shrink: 0; }
+.material-card.active .mc-icon { 
+  background: var(--color-primary, #165DFF); 
+  color: #fff; 
+}
+.mc-info { width: 100%; }
+.mc-name { font-size: 12px; font-weight: 600; color: #1D2129; }
+.mc-desc { font-size: 10px; color: #86909C;margin-top: 2px; }
+.mc-check { 
+  position: absolute; 
+  top: 4px; 
+  right: 4px; 
+  color: var(--color-primary, #165DFF); 
+}
 
-/* 入射角 */
 .angle-input-wrap { display: flex; align-items: center; gap: 8px; }
 .angle-input { flex: 1; }
-.angle-unit { font-size: 16px; font-weight: 500; color: #4E5969; }
 
 .action-btn {
-  width: 100%; border-radius: 8px; font-weight: 500;
-  height: 40px; letter-spacing: 0.5px;
+  width: 100%; 
+  border-radius: 8px; 
+  font-weight: 500;
+  height: 40px; 
+  letter-spacing: 0.5px;
 }
 .export-row { display: flex; gap: 8px; }
-.export-btn, .save-btn {
-  flex: 1; border-radius: 8px; font-weight: 500;
-}
+.export-btn, .save-btn { flex: 1; border-radius: 8px; font-weight: 500; }
 .export-btn {
-  border: 1px dashed #B8D4FF; color: var(--color-primary, #165DFF);
+  border: 1px dashed #B8D4FF; 
+  color: var(--color-primary, #165DFF);
 }
-.export-btn:hover { border-color: var(--color-primary, #165DFF); background: #E8F3FF; }
+.export-btn:hover { 
+  border-color: var(--color-primary, #165DFF); 
+  background: #E8F3FF; 
+}
 </style>

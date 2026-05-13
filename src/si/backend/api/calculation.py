@@ -3,9 +3,9 @@ import io
 from typing import List, Optional, Dict, Any
 
 import numpy as np
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from si.algorithms.models import InterferenceModels
 from si.algorithms.preprocess import SpectrumPreprocessor
@@ -14,10 +14,11 @@ router = APIRouter(prefix="/api", tags=["calculation"])
 
 
 class CalculateRequest(BaseModel):
-    wavelength: List[float]
-    reflectance: List[float]
-    material: str = "SiC"
-    theta_deg: float = 10.0
+    """计算请求模型"""
+    wavelength: List[float] = Field(..., min_length=10, max_length=10000)
+    reflectance: List[float] = Field(..., min_length=10, max_length=10000)
+    material: str = Field(default="SiC", pattern="^(SIC|SI|GAN|ALN|INP|GAAS|ZNO|C)$")
+    theta_deg: float = Field(default=10.0, ge=0, le=89)
 
 
 class ExportRequest(BaseModel):
@@ -33,15 +34,61 @@ def calculate_thickness(req: CalculateRequest):
     try:
         import pandas as pd
 
-        df_wl = pd.Series(req.wavelength)
-        df_ref = pd.Series(req.reflectance)
+        # 数据长度一致性验证
+        if len(req.wavelength) != len(req.reflectance):
+            return {"success": False, "error": f"波长和反射率数据长度不一致: {len(req.wavelength)} vs {len(req.reflectance)}"}
 
-        df = pd.DataFrame({"wavelength": df_wl, "reflectance": df_ref})
+        wl_arr = np.array(req.wavelength, dtype=np.float64)
+        ref_arr = np.array(req.reflectance, dtype=np.float64)
+
+        # 检查是否有 NaN 或 Inf
+        if np.any(np.isnan(wl_arr)) or np.any(np.isnan(ref_arr)):
+            return {"success": False, "error": "数据包含 NaN 值"}
+        
+        if np.any(np.isinf(wl_arr)) or np.any(np.isinf(ref_arr)):
+            return {"success": False, "error": "数据包含 Inf 值"}
+
+        # 检查波长范围
+        wl_min, wl_max = wl_arr.min(), wl_arr.max()
+        if wl_max - wl_min < 0.1:
+            return {"success": False, "error": f"波长范围太小 ({wl_max - wl_min:.3f} μm)，至少需要 0.1 μm"}
+
+        # 自动降采样处理大数据
+        if len(wl_arr) > 3000:
+            step = max(1, len(wl_arr) // 2000)
+            wl_arr = wl_arr[::step]
+            ref_arr = ref_arr[::step]
+
+        df = pd.DataFrame({"wavelength": wl_arr, "reflectance": ref_arr})
         df = SpectrumPreprocessor.smooth_filter(df, method="sg", window=15)
-        extrema = SpectrumPreprocessor.find_extremum(df, col_name="ref_smooth")
+        
+        # 检测极值点，使用自适应低prominence
+        extrema = SpectrumPreprocessor.find_extremum(df, col_name="ref_smooth", prominence=0.001)
+
+        # 验证极值点数量
+        num_peaks = len(extrema["peaks_x"])
+        num_valleys = len(extrema["valleys_x"])
+        
+        if num_peaks + num_valleys < 2:
+            # 返回详细调试信息
+            smooth_range = df['ref_smooth'].max() - df['ref_smooth'].min()
+            return {
+                "success": False, 
+                "error": f"无法检测到足够的极值点 (波峰:{num_peaks}, 波谷:{num_valleys})，数据范围:{smooth_range:.4f}，建议检查数据质量或调整波长范围",
+                "debug": {
+                    "wl_range": f"{wl_arr.min():.3f}-{wl_arr.max():.3f}",
+                    "ref_range": f"{ref_arr.min():.3f}-{ref_arr.max():.3f}",
+                    "smooth_range": f"{smooth_range:.4f}",
+                    "peaks": num_peaks,
+                    "valleys": num_valleys
+                }
+            }
 
         init_d = InterferenceModels.init_thickness_estimate(
-            extrema["peaks_x"], extrema["valleys_x"], req.material, req.theta_deg
+            extrema["peaks_x"].tolist(), 
+            extrema["valleys_x"].tolist(), 
+            req.material, 
+            float(req.theta_deg)
         )
 
         multi_beam_level = InterferenceModels.detect_multi_beam(df["ref_smooth"].values)
@@ -49,11 +96,11 @@ def calculate_thickness(req: CalculateRequest):
         wl_vals = df["wavelength"].values
         ref_vals = df["ref_smooth"].values
         res = InterferenceModels.optimize_thickness(
-            wl_vals, ref_vals, init_d, req.material, req.theta_deg
+            wl_vals, ref_vals, init_d, req.material, float(req.theta_deg)
         )
 
         ref_fit = InterferenceModels.two_beam_reflectance(
-            wl_vals, res["thickness_um"], req.material, req.theta_deg
+            wl_vals, res["thickness_um"], req.material, float(req.theta_deg)
         )
 
         return {
