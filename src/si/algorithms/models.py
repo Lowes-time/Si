@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+
 """
 核心算法层：双光束与多光束干涉模型
 """
@@ -49,20 +49,17 @@ class InterferenceModels:
         """双光束干涉反射率正演"""
         theta_rad = np.radians(theta_deg)
         
-        # 处理标量或数组
         wl_arr = np.asarray(wl_um, dtype=np.float64)
         n = OpticalConstants.calc_refractive_index(wl_arr, material)
         cos_theta_t = np.sqrt(np.maximum(0, n**2 - np.sin(theta_rad)**2))
         
         delta = (4 * np.pi * thickness * cos_theta_t) / wl_arr
-        # 简化版反射率叠加模型，含半波损失
         R = 0.5 + 0.4 * np.cos(delta + np.pi) 
         return R
     
     @staticmethod
     def optimize_thickness(df_wl, df_ref, init_d, material, theta_deg):
         """非线性拟合求解厚度"""
-        # 确保输入是numpy数组
         wl_arr = np.asarray(df_wl, dtype=np.float64)
         ref_arr = np.asarray(df_ref, dtype=np.float64)
         
@@ -70,14 +67,12 @@ class InterferenceModels:
             r_fit = InterferenceModels.two_beam_reflectance(wl_arr, d_guess[0], material, theta_deg)
             return r_fit - ref_arr
         
-        # 确保初始值在边界内
         init_d = float(max(1.5, min(45.0, init_d)))
         
         # 使用 bounds 参数确保边界正确 (使用元组格式)
         try:
             res = least_squares(residual, [init_d], bounds=([1.5], [45.0]), method='trf')
         except Exception as e:
-            # 如果失败，尝试使用 minimize
             def cost_func(d):
                 r_fit = InterferenceModels.two_beam_reflectance(wl_arr, float(d[0]), material, theta_deg)
                 return float(np.sum((r_fit - ref_arr)**2))
@@ -89,7 +84,6 @@ class InterferenceModels:
                     'cost': float(result.fun)
                 }
             except:
-                # 最终fallback：返回初始值
                 return {
                     'thickness_um': init_d,
                     'r_squared': 0.0,

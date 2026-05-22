@@ -46,13 +46,23 @@
         </div>
         <div class="log-lines">
           <div
-            v-for="(line, i) in log"
+            v-for="(line, i) in paginatedLog"
             :key="i"
             class="log-line"
           >
             <span class="log-dot"></span>
             {{ line }}
           </div>
+        </div>
+        <div class="log-pagination" v-if="log.length > pageSize">
+          <el-pagination 
+            v-model:current-page="currentPage" 
+            :page-size="pageSize" 
+            :total="log.length" 
+            layout="prev, pager, next"
+            small
+            style="justify-content: center; margin-top: 10px;"
+          />
         </div>
       </div>
     </template>
@@ -69,6 +79,12 @@ export default {
     log: { type: Array, default: () => [] },
     result: { type: Object, default: null },
   },
+  data() {
+    return {
+      currentPage: 1,
+      pageSize: 5
+    };
+  },
   computed: {
     beamLevel() {
       if (!this.result) return "";
@@ -76,7 +92,17 @@ export default {
       if (this.result.multi_beam_level?.includes("中等")) return "warning";
       return "info";
     },
+    paginatedLog() {
+      const start = (this.currentPage - 1) * this.pageSize;
+      const end = start + this.pageSize;
+      return this.log.slice().reverse().slice(start, end);
+    }
   },
+  watch: {
+    log() {
+      this.currentPage = 1;
+    }
+  }
 };
 </script>
 

@@ -24,18 +24,6 @@
           <el-tab-pane label="实时分析" name="analysis" />
           <el-tab-pane label="历史记录" name="history" />
         </el-tabs>
-        <div class="header-actions">
-          <el-button-group>
-            <el-button size="default" @click="showHelp = true" class="action-btn">
-              <el-icon><QuestionFilled /></el-icon>
-              <span>帮助</span>
-            </el-button>
-            <el-button size="default" @click="showAbout = true" class="action-btn">
-              <el-icon><InfoFilled /></el-icon>
-              <span>关于</span>
-            </el-button>
-          </el-button-group>
-        </div>
       </div>
     </header>
     <div class="app-body">
@@ -102,6 +90,17 @@
       </template>
     </div>
 
+    <footer class="app-footer">
+      <div class="footer-links">
+        <a href="javascript:void(0)" @click="showHelp = true" class="footer-link">使用帮助</a>
+        <span class="divider">|</span>
+        <a href="javascript:void(0)" @click="showAbout = true" class="footer-link">关于系统</a>
+      </div>
+      <div class="footer-copyright">
+        &copy; 2026 半导体外延层厚度分析系统
+      </div>
+    </footer>
+
     <!-- 关于对话框 -->
     <el-dialog v-model="showAbout" title="关于系统" width="550px" append-to-body>
       <div class="about-content">
@@ -130,93 +129,112 @@
     </el-dialog>
 
     <!-- 帮助对话框 -->
-    <el-dialog v-model="showHelp" title="使用帮助" width="700px" append-to-body class="help-dialog">
+    <el-dialog v-model="showHelp" title="使用帮助" width="700px" append-to-body class="help-dialog" @closed="helpActivePage = 1">
       <div class="help-content">
-        <div class="help-section">
-          <h3>一、数据导入</h3>
-          <p>系统支持三种数据导入方式：</p>
-          <ul>
-            <li><strong>文件上传</strong>：拖拽或点击上传 CSV/TXT/XLSX 格式的光谱数据文件</li>
-            <li><strong>示例数据</strong>：内置 SiC-15μm、SiC-30μm、Si-2μm 三种示例数据供演示使用</li>
-            <li><strong>手动输入</strong>：直接粘贴或输入波长和反射率数据（格式：波长,反射率）</li>
-          </ul>
+        <div v-show="helpActivePage === 1" class="help-page">
+          <div class="help-section">
+            <h3>一、数据导入</h3>
+            <p>系统支持三种数据导入方式：</p>
+            <ul>
+              <li><strong>文件上传</strong>：拖拽或点击上传 CSV/TXT/XLSX 格式的光谱数据文件</li>
+              <li><strong>示例数据</strong>：内置 SiC-15μm、SiC-30μm、Si-2μm 三种示例数据供演示使用</li>
+              <li><strong>手动输入</strong>：直接粘贴或输入波长和反射率数据（格式：波长,反射率）</li>
+            </ul>
+          </div>
+          
+          <div class="help-section">
+            <h3>二、数据范围选择</h3>
+            <p>导入数据后，可以在预处理面板中选择感兴趣的数据区间：</p>
+            <ul>
+              <li><strong>手动输入</strong>：在"波长范围"输入框中指定起止波长</li>
+              <li><strong>自动选择</strong>：系统可自动分析并选择最优拟合区间</li>
+              <li><strong>数据限制</strong>：最小需保留 30 个数据点以保证拟合精度</li>
+            </ul>
+          </div>
+        </div>
+
+        <div v-show="helpActivePage === 2" class="help-page">
+          <div class="help-section">
+            <h3>三、材料选择与计算</h3>
+            <p>在膜厚反演面板中：</p>
+            <ul>
+              <li>选择对应的半导体基底材料（支持 8 种材料）</li>
+              <li>设置入射角（0-89°）</li>
+              <li>点击"执行厚度拟合与反演"进行计算</li>
+            </ul>
+          </div>
+
+          <div class="help-section">
+            <h3>四、结果保存与报告</h3>
+            <ul>
+              <li>计算完成后可点击"保存入库"将结果保存到数据库</li>
+              <li>点击"Excel"导出计算结果</li>
+              <li>在历史记录中可查看历史数据、重测和打印报告</li>
+            </ul>
+          </div>
+        </div>
+
+        <div v-show="helpActivePage === 3" class="help-page">
+          <div class="help-section">
+            <h3>五、支持的材料</h3>
+            <div class="material-list">
+              <div class="material-item"><span class="mat-name">SiC</span><span class="mat-desc">碳化硅 - 功率器件、射频</span></div>
+              <div class="material-item"><span class="mat-name">Si</span><span class="mat-desc">硅 - IC衬底、太阳能</span></div>
+              <div class="material-item"><span class="mat-name">GaN</span><span class="mat-desc">氮化镓 - 蓝光LED</span></div>
+              <div class="material-item"><span class="mat-name">AlN</span><span class="mat-desc">氮化铝 - UVC LED</span></div>
+              <div class="material-item"><span class="mat-name">InP</span><span class="mat-desc">磷化铟 - 光通信</span></div>
+              <div class="material-item"><span class="mat-name">GaAs</span><span class="mat-desc">砷化镓 - 射频激光</span></div>
+              <div class="material-item"><span class="mat-name">ZnO</span><span class="mat-desc">氧化锌 - UV压电</span></div>
+              <div class="material-item"><span class="mat-name">C</span><span class="mat-desc">金刚石 - 高功率探测</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div v-show="helpActivePage === 4" class="help-page">
+          <div class="help-section">
+            <h3>六、数据来源与算法说明</h3>
+            <div class="algorithm-info">
+              <div class="algo-item">
+                <h4>材料光学常数</h4>
+                <p>所有半导体材料的折射率数据均来源于：</p>
+                <ul>
+                  <li>公开发表的学术论文（如Peter Yu, "Fundamentals of Semiconductors"）</li>
+                  <li>美国NIST（国家标准与技术研究院）光学常数数据库</li>
+                  <li>Sellmeier方程经验公式（业界标准方法）</li>
+                </ul>
+              </div>
+              <div class="algo-item">
+                <h4>核心算法</h4>
+                <p>薄膜厚度反演采用以下成熟算法：</p>
+                <ul>
+                  <li><strong>双光束干涉模型</strong>：基于薄膜光学原理的反射率计算</li>
+                  <li><strong>Savitzky-Golay滤波</strong>：数据平滑去噪</li>
+                  <li><strong>Levenberg-Marquardt优化</strong>：非线性最小二乘拟合</li>
+                  <li><strong>干涉条纹对比度分析</strong>：多光束干涉等级判定</li>
+                </ul>
+              </div>
+              <div class="algo-item">
+                <h4>准确性保证</h4>
+                <ul>
+                  <li>折射率公式经过实验验证</li>
+                  <li>拟合算法采用工业级scipy优化库</li>
+                  <li>R²指标评估拟合质量</li>
+                  <li>支持置信区间估算</li>
+                </ul>
+              </div>
+            </div>
+          </div>
         </div>
         
-        <div class="help-section">
-          <h3>二、数据范围选择</h3>
-          <p>导入数据后，可以在预处理面板中选择感兴趣的数据区间：</p>
-          <ul>
-            <li><strong>手动输入</strong>：在"波长范围"输入框中指定起止波长</li>
-            <li><strong>自动选择</strong>：系统可自动分析并选择最优拟合区间</li>
-            <li><strong>数据限制</strong>：最小需保留 30 个数据点以保证拟合精度</li>
-          </ul>
-        </div>
-
-        <div class="help-section">
-          <h3>三、材料选择与计算</h3>
-          <p>在膜厚反演面板中：</p>
-          <ul>
-            <li>选择对应的半导体基底材料（支持 8 种材料）</li>
-            <li>设置入射角（0-89°）</li>
-            <li>点击"执行厚度拟合与反演"进行计算</li>
-          </ul>
-        </div>
-
-        <div class="help-section">
-          <h3>四、结果保存与报告</h3>
-          <ul>
-            <li>计算完成后可点击"保存入库"将结果保存到数据库</li>
-            <li>点击"Excel"导出计算结果</li>
-            <li>在历史记录中可查看历史数据、重测和打印报告</li>
-          </ul>
-        </div>
-
-        <div class="help-section">
-          <h3>五、支持的材料</h3>
-          <div class="material-list">
-            <div class="material-item"><span class="mat-name">SiC</span><span class="mat-desc">碳化硅 - 功率器件、射频</span></div>
-            <div class="material-item"><span class="mat-name">Si</span><span class="mat-desc">硅 - IC衬底、太阳能</span></div>
-            <div class="material-item"><span class="mat-name">GaN</span><span class="mat-desc">氮化镓 - 蓝光LED</span></div>
-            <div class="material-item"><span class="mat-name">AlN</span><span class="mat-desc">氮化铝 - UVC LED</span></div>
-            <div class="material-item"><span class="mat-name">InP</span><span class="mat-desc">磷化铟 - 光通信</span></div>
-            <div class="material-item"><span class="mat-name">GaAs</span><span class="mat-desc">砷化镓 - 射频激光</span></div>
-            <div class="material-item"><span class="mat-name">ZnO</span><span class="mat-desc">氧化锌 - UV压电</span></div>
-            <div class="material-item"><span class="mat-name">C</span><span class="mat-desc">金刚石 - 高功率探测</span></div>
-          </div>
-        </div>
-
-        <div class="help-section">
-          <h3>六、数据来源与算法说明</h3>
-          <div class="algorithm-info">
-            <div class="algo-item">
-              <h4>材料光学常数</h4>
-              <p>所有半导体材料的折射率数据均来源于：</p>
-              <ul>
-                <li>公开发表的学术论文（如Peter Yu, "Fundamentals of Semiconductors"）</li>
-                <li>美国NIST（国家标准与技术研究院）光学常数数据库</li>
-                <li>Sellmeier方程经验公式（业界标准方法）</li>
-              </ul>
-            </div>
-            <div class="algo-item">
-              <h4>核心算法</h4>
-              <p>薄膜厚度反演采用以下成熟算法：</p>
-              <ul>
-                <li><strong>双光束干涉模型</strong>：基于薄膜光学原理的反射率计算</li>
-                <li><strong>Savitzky-Golay滤波</strong>：数据平滑去噪</li>
-                <li><strong>Levenberg-Marquardt优化</strong>：非线性最小二乘拟合</li>
-                <li><strong>干涉条纹对比度分析</strong>：多光束干涉等级判定</li>
-              </ul>
-            </div>
-            <div class="algo-item">
-              <h4>准确性保证</h4>
-              <ul>
-                <li>折射率公式经过实验验证</li>
-                <li>拟合算法采用工业级scipy优化库</li>
-                <li>R²指标评估拟合质量</li>
-                <li>支持置信区间估算</li>
-              </ul>
-            </div>
-          </div>
+        <div class="help-pagination">
+          <el-pagination 
+            v-model:current-page="helpActivePage" 
+            :page-size="1" 
+            :total="4" 
+            layout="prev, pager, next"
+            background
+            style="justify-content: center; margin-top: 20px;"
+          />
         </div>
       </div>
     </el-dialog>
@@ -249,6 +267,7 @@ export default {
     return {
       showAbout: false,
       showHelp: false,
+      helpActivePage: 1,
       activeView: "analysis",
       rawData: null,
       processedData: null,
@@ -439,6 +458,27 @@ body { font-family: var(--font-family); background: var(--color-bg-1); color: va
 .nav-tabs :deep(.el-tabs__item) { height: 56px; line-height: 56px; font-size: 15px; font-weight: 500; }
 
 .app-body { flex: 1; display: flex; overflow: hidden; }
+
+.app-footer {
+  text-align: center;
+  padding: 12px 0;
+  background: var(--color-bg-2);
+  border-top: 1px solid var(--color-border);
+  font-size: 12px;
+  color: var(--color-text-3);
+  flex-shrink: 0;
+}
+.footer-links { margin-bottom: 6px; }
+.footer-link {
+  color: var(--color-text-2);
+  text-decoration: none;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+.footer-link:hover { color: var(--color-primary); }
+.footer-links .divider { margin: 0 12px; color: var(--color-border); }
+.footer-copyright { font-size: 11px; }
+
 .database-view { flex: 1; background: var(--color-bg-2); overflow: hidden; }
 .control-panel { width: 400px; flex-shrink: 0; background: var(--color-bg-2); border-right: 1px solid var(--color-border); display: flex; flex-direction: column; }
 .panel-scroll { flex: 1; overflow-y: auto; padding: 16px; }
