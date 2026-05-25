@@ -1,124 +1,80 @@
-# -*- coding: utf-8 -*-
-# 软件名称：基于多光束干涉校正的半导体外延层厚度光谱反演系统 V1.0
-# 软件功能：标准化 PDF 测试检测报告生成器
+"""PDF 检测报告生成（fpdf2）"""
 
-import os
+import io
 from datetime import datetime
-try:
-    from reportlab.lib.pagesizes import A4
-    from reportlab.lib import colors
-    from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
-    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-    from reportlab.pdfbase import pdfmetrics
-    from reportlab.pdfbase.ttfonts import TTFont
-except ImportError:
-    pass # 生产环境中需安装 reportlab
 
-class QualityReportGenerator:
-    """自动化质量检测 PDF 报告生成器"""
-    
-    def __init__(self, output_filepath: str):
-        self.filepath = output_filepath
-        self.doc = None
-        self.elements = []
-        self.styles = None
-        self._setup_environment()
+from fpdf import FPDF
 
-    def _setup_environment(self):
-        """初始化 PDF 绘制环境与中文支持"""
-        try:
-            self.doc = SimpleDocTemplate(self.filepath, pagesize=A4)
-            self.styles = getSampleStyleSheet()
-            
-            # 添加自定义中文字体样式 (如果系统有中文字体可以注册，这里使用默认的英文以保证无错运行，软著提交时无需关心具体字体文件)
-            self.title_style = ParagraphStyle(
-                'CustomTitle',
-                parent=self.styles['Heading1'],
-                fontSize=18,
-                spaceAfter=20,
-                alignment=1 # 居中
-            )
-            self.normal_style = ParagraphStyle(
-                'CustomNormal',
-                parent=self.styles['Normal'],
-                fontSize=10,
-                spaceAfter=10
-            )
-        except Exception as e:
-            print(f"PDF生成引擎初始化失败: {e}")
 
-    def build_report(self, test_info: dict, result_data: dict):
-        """
-        组装并生成完整 PDF 报告
-        Args:
-            test_info: 包含测试人员、材料、批次等信息
-            result_data: 算法返回的拟合结果字典
-        """
-        if not self.doc:
-            return False
+class ReportPDF(FPDF):
+    def header(self):
+        self.set_font("Helvetica", "B", 14)
+        self.cell(0, 10, "Semiconductor Epitaxial Thickness Test Report", new_x="LMARGIN", new_y="NEXT", align="C")
+        self.set_font("Helvetica", "", 9)
+        self.cell(0, 6, "Multi-Beam Interference Correction System V1.0", new_x="LMARGIN", new_y="NEXT", align="C")
+        self.ln(4)
 
-        # 1. 报告抬头
-        self.elements.append(Paragraph("Semiconductor Epitaxial Layer Thickness Test Report", self.title_style))
-        self.elements.append(Paragraph("System: Multi-Beam Interference Correction V1.0", self.title_style))
-        self.elements.append(Spacer(1, 20))
 
-        # 2. 实验参数表格
-        self.elements.append(Paragraph("1. Test Parameters & Specimen Info", self.styles['Heading2']))
-        param_data = [
-            ["Test Date", datetime.now().strftime("%Y-%m-%d %H:%M:%S")],
-            ["Material Type", test_info.get("material", "Unknown")],
-            ["Incident Angle", f"{test_info.get('angle', 0.0)} Deg"],
-            ["Algorithm Mode", test_info.get("mode", "Auto")]
-        ]
-        param_table = Table(param_data, colWidths=[200, 250])
-        param_table.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (0, -1), colors.lightgrey),
-            ('TEXTCOLOR', (0, 0), (-1, -1), colors.black),
-            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-            ('FONTNAME', (0, 0), (-1, -1), 'Helvetica-Bold'),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
-            ('GRID', (0, 0), (-1, -1), 1, colors.black)
-        ]))
-        self.elements.append(param_table)
-        self.elements.append(Spacer(1, 20))
+def _ascii_safe(text):
+    """PDF 核心字体仅支持 Latin-1，中文等级转为英文描述"""
+    mapping = {
+        "强多光束干涉": "Strong multi-beam",
+        "中等多光束干涉": "Moderate multi-beam",
+        "弱/无多光束干涉": "Weak/none multi-beam",
+    }
+    s = str(text) if text is not None else "-"
+    return mapping.get(s, s.encode("ascii", "replace").decode("ascii"))
 
-        # 3. 核心拟合结果表格
-        self.elements.append(Paragraph("2. Thickness Calculation Results", self.styles['Heading2']))
-        
-        thickness = result_data.get("thickness_um", 0.0)
-        r_squared = result_data.get("r_squared", 0.0)
-        multi_beam_level = result_data.get("multi_beam_level", "N/A")
-        
-        # 根据 R2 判定是否合格
-        status = "PASSED" if r_squared > 0.95 else "WARNING"
-        status_color = colors.green if status == "PASSED" else colors.orange
 
-        res_data = [
-            ["Metric", "Value", "Unit"],
-            ["Fitted Thickness (d)", f"{thickness:.4f}", "um"],
-            ["Goodness of Fit (R^2)", f"{r_squared:.5f}", "-"],
-            ["Interference Level", multi_beam_level, "-"],
-            ["Quality Status", status, "-"]
-        ]
-        res_table = Table(res_data, colWidths=[150, 200, 100])
-        res_table.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), colors.darkblue),
-            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-            ('GRID', (0, 0), (-1, -1), 1, colors.black),
-            ('TEXTCOLOR', (1, -1), (1, -1), status_color) # 状态颜色
-        ]))
-        self.elements.append(res_table)
-        self.elements.append(Spacer(1, 30))
+def build_record_pdf(record: dict) -> bytes:
+    """根据 film_record 字典生成 PDF 字节流"""
+    pdf = ReportPDF()
+    pdf.add_page()
+    pdf.set_font("Helvetica", "", 10)
 
-        # 4. 免责声明页脚
-        disclaimer = "Declaration: This report is automatically generated by the algorithm engine. The analysis results are based on spectral interference principles and are for reference in process control only."
-        self.elements.append(Paragraph(disclaimer, self.styles['Italic']))
+    pdf.set_font("Helvetica", "B", 11)
+    pdf.cell(0, 8, "1. Specimen Information", new_x="LMARGIN", new_y="NEXT")
+    pdf.set_font("Helvetica", "", 10)
 
-        # 执行渲染
-        try:
-            self.doc.build(self.elements)
-            return True
-        except Exception as e:
-            print(f"PDF 写入失败: {e}")
-            return False
+    rows = [
+        ("Film Code", record.get("film_code", "-")),
+        ("Material", record.get("material_type", "-")),
+        ("Incident Angle", f"{record.get('theta_deg', '-')} deg"),
+        ("Test Date", datetime.now().strftime("%Y-%m-%d %H:%M:%S")),
+    ]
+    for label, val in rows:
+        pdf.cell(50, 7, label + ":", border=0)
+        pdf.cell(0, 7, str(val), new_x="LMARGIN", new_y="NEXT")
+
+    pdf.ln(4)
+    pdf.set_font("Helvetica", "B", 11)
+    pdf.cell(0, 8, "2. Inversion Results", new_x="LMARGIN", new_y="NEXT")
+    pdf.set_font("Helvetica", "", 10)
+
+    r2 = record.get("r_squared")
+    status = "PASSED" if r2 and r2 > 0.8 else "REVIEW"
+    result_rows = [
+        ("Thickness (um)", record.get("thickness_um", "-")),
+        ("R-squared", r2 if r2 is not None else "-"),
+        ("Multi-beam Level", _ascii_safe(record.get("multi_beam_level", "-"))),
+        ("Quality", status),
+    ]
+    for label, val in result_rows:
+        pdf.cell(50, 7, label + ":", border=0)
+        pdf.cell(0, 7, str(val), new_x="LMARGIN", new_y="NEXT")
+
+    if record.get("notes"):
+        pdf.ln(4)
+        pdf.set_font("Helvetica", "I", 9)
+        pdf.multi_cell(0, 5, "Notes: " + str(record["notes"]))
+
+    pdf.ln(8)
+    pdf.set_font("Helvetica", "I", 8)
+    pdf.multi_cell(
+        0, 4,
+        "Auto-generated report for process reference. Results based on spectral interference inversion.",
+    )
+
+    buf = io.BytesIO()
+    pdf.output(buf)
+    return bytes(buf.getvalue())

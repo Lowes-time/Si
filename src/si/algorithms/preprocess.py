@@ -4,6 +4,28 @@ from scipy.signal import savgol_filter, find_peaks
 
 class SpectrumPreprocessor:
     @staticmethod
+    def suggest_smooth_window(wl_um, reflectance):
+        """按干涉条纹疏密推荐 SG 窗口，厚膜高频条纹不宜用大窗口"""
+        y = np.asarray(reflectance, dtype=np.float64)
+        n = len(y)
+        if n < 15:
+            return 5 if n >= 5 else 3
+        span = float(y.max() - y.min())
+        if span < 1e-6:
+            return 9
+        quick_w = min(9, n if n % 2 == 1 else n - 1)
+        quick_w = max(5, quick_w)
+        ys = savgol_filter(y, window_length=quick_w, polyorder=min(2, quick_w - 1))
+        prom = max(0.001, span * 0.02)
+        peaks, _ = find_peaks(ys, prominence=prom)
+        n_peaks = max(1, len(peaks))
+        pts_per_half = n / (2.0 * n_peaks)
+        win = int(np.clip(pts_per_half * 0.45, 5, 15))
+        if win % 2 == 0:
+            win += 1
+        return min(win, n if n % 2 == 1 else n - 1)
+
+    @staticmethod
     def smooth_filter(df, method='sg', window=15, poly_deg=3):
         df_out = df.copy()
         n_points = len(df['reflectance'])

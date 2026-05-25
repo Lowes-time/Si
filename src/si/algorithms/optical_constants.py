@@ -1,33 +1,30 @@
 # -*- coding: utf-8 -*-
-"""
-软件名称：基于多光束干涉校正的半导体外延层厚度光谱反演系统 V1.0
-软件功能：材料光学常数计算模块
-支持多种半导体材料的折射率计算和复介电函数模型
-"""
+"""材料光学常数：Sellmeier 色散与衬底折射率"""
 
 import numpy as np
 from typing import Dict, Tuple, Optional
 
 
 class OpticalConstants:
-    """材料光学常数计算模块
-    
-    提供半导体材料的光学常数计算功能
-    包括折射率计算和复介电函数模型
-    """
+    """Sellmeier 色散与衬底折射率"""
     
     # 材料折射率计算参数 (Sellmeier系数)
     _material_params: Dict[str, Dict] = {
         'SIC': {
             'name': '碳化硅 (4H-SiC)',
+            'formula': 'SiC',
+            'desc': '功率器件/射频',
             'A': 4.148,
             'B': 2.378,
             'lambda_sq': 0.0388,
             'temp_coef': 8e-5,
-            'bandgap': 3.26
+            'bandgap': 3.26,
+            'n_substrate_scale': 1.015,
         },
         'SI': {
             'name': '硅 (Si)',
+            'formula': 'Si',
+            'desc': 'IC衬底/太阳能',
             'A': 3.41983,
             'B1': 0.159906,
             'B2': -0.123109,
@@ -35,38 +32,50 @@ class OpticalConstants:
             'B4': -1.95104e-9,
             'lambda_base': 0.028,
             'temp_coef': 1.5e-4,
-            'bandgap': 1.12
+            'bandgap': 1.12,
+            'n_substrate_scale': 1.008,
         },
         'GAN': {
             'name': '氮化镓 (GaN)',
+            'formula': 'GaN',
+            'desc': '蓝光LED/功率',
             'A': 2.275,
             'B': 3.057,
             'lambda_sq': 0.088**2,
             'temp_coef': 2.5e-4,
-            'bandgap': 3.39
+            'bandgap': 3.39,
+            'n_substrate_scale': 1.012,
         },
         'ALN': {
             'name': '氮化铝 (AlN)',
+            'formula': 'AlN',
+            'desc': 'UVC LED/压电',
             'A': 1.0,
             'B1': 2.0768,
             'B2': 3.8260,
             'lambda1_sq': 0.1176**2,
             'lambda2_sq': 7.8925**2,
             'temp_coef': 1.8e-4,
-            'bandgap': 6.2
+            'bandgap': 6.2,
+            'n_substrate_scale': 1.01,
         },
         'INP': {
             'name': '磷化铟 (InP)',
+            'formula': 'InP',
+            'desc': '光通信/激光',
             'A': 1.0,
             'B1': 7.2669,
             'B2': 0.22873,
             'lambda1_sq': 0.38954**2,
             'lambda2_sq': 31.130**2,
             'temp_coef': 3.2e-4,
-            'bandgap': 1.35
+            'bandgap': 1.35,
+            'n_substrate_scale': 1.01,
         },
         'GAAS': {
             'name': '砷化镓 (GaAs)',
+            'formula': 'GaAs',
+            'desc': '射频/激光',
             'A': 1.0,
             'B1': 5.3724,
             'B2': 0.2127,
@@ -75,41 +84,101 @@ class OpticalConstants:
             'lambda2_sq': 0.874**2,
             'lambda3_sq': 36.916**2,
             'temp_coef': 2.8e-4,
-            'bandgap': 1.42
+            'bandgap': 1.42,
+            'n_substrate_scale': 1.012,
         },
         'ZNO': {
             'name': '氧化锌 (ZnO)',
+            'formula': 'ZnO',
+            'desc': 'UV/压电',
             'A': 1.0,
             'B1': 1.9887,
             'B2': 2.3468,
             'lambda1_sq': 0.075**2,
             'lambda2_sq': 7.385**2,
             'temp_coef': 1.5e-4,
-            'bandgap': 3.37
+            'bandgap': 3.37,
+            'n_substrate_scale': 1.008,
         },
         'C': {
             'name': '金刚石 (C)',
+            'formula': 'C',
+            'desc': '高功率/辐射探测',
             'A': 1.0,
             'B1': 0.3306,
             'B2': 4.0688,
             'lambda1': 0.175,
             'temp_coef': 0,
-            'bandgap': 5.47
-        }
+            'bandgap': 5.47,
+            'n_substrate_scale': 1.01,
+        },
+        'GE': {
+            'name': '锗 (Ge)',
+            'formula': 'Ge',
+            'desc': '红外光学/探测器',
+            'A': 1.0,
+            'B1': 6.728,
+            'B2': 0.213,
+            'lambda1_sq': 0.408**2,
+            'temp_coef': 2.0e-4,
+            'bandgap': 0.67,
+            'n_substrate_scale': 1.012,
+        },
+        'GASB': {
+            'name': '砷化镓锑 (GaSb)',
+            'formula': 'GaSb',
+            'desc': '红外探测器/激光',
+            'A': 1.0,
+            'B1': 8.881,
+            'B2': 0.213,
+            'lambda1_sq': 0.443**2,
+            'temp_coef': 2.5e-4,
+            'bandgap': 0.73,
+            'n_substrate_scale': 1.01,
+        },
+        'INAS': {
+            'name': '砷化铟 (InAs)',
+            'formula': 'InAs',
+            'desc': '中红外/高速器件',
+            'A': 1.0,
+            'B1': 8.350,
+            'B2': 0.169,
+            'lambda1_sq': 0.443**2,
+            'temp_coef': 3.0e-4,
+            'bandgap': 0.36,
+            'n_substrate_scale': 1.01,
+        },
+        'SIO2': {
+            'name': '二氧化硅 (SiO2)',
+            'formula': 'SiO2',
+            'desc': '栅氧/钝化层',
+            'A': 1.0,
+            'B1': 0.6961663,
+            'B2': 0.4079426,
+            'B3': 0.8974794,
+            'lambda1_sq': 0.0684043**2,
+            'lambda2_sq': 0.1162414**2,
+            'lambda3_sq': 9.896161**2,
+            'temp_coef': 0,
+            'bandgap': 9.0,
+            'n_substrate_scale': 1.005,
+        },
+        'SI3N4': {
+            'name': '氮化硅 (Si3N4)',
+            'formula': 'Si3N4',
+            'desc': '应力缓冲/钝化',
+            'A': 1.0,
+            'B1': 2.893,
+            'B2': 0.137,
+            'lambda1_sq': 0.139**2,
+            'temp_coef': 0,
+            'bandgap': 5.0,
+            'n_substrate_scale': 1.008,
+        },
     }
     
     @staticmethod
     def calc_refractive_index(wavelength_um, material='SIC'):
-        """
-        计算指定材料的折射率
-        
-        Args:
-            wavelength_um: 波长数组 (微米)
-            material: 材料标识符 ('SIC', 'SI', 'GAN', 'ALN', 'INP', 'GAAS', 'ZNO', 'C')
-        
-        Returns:
-            折射率数组
-        """
         wavelength = np.asarray(wavelength_um)
         material = str(material).strip().upper()
         
@@ -162,10 +231,34 @@ class OpticalConstants:
                    + params['B2']*lambda_sq/(lambda_sq - params['lambda2_sq'])
             
         elif material == 'C':
-            # Diamond: Peter Yu模型
             lambda_um = wavelength
             n_sq = params['A'] + params['B1']*lambda_um**2/(lambda_um**2 - params['lambda1']**2) \
                    + params['B2']*lambda_um**2/(lambda_um**2 - params['lambda1']**2)**2
+
+        elif material == 'GE':
+            lambda_sq = wavelength ** 2
+            n_sq = params['A'] + params['B1']*lambda_sq/(lambda_sq - params['lambda1_sq']) \
+                   + params['B2']*lambda_sq/(lambda_sq - params['lambda1_sq'])
+
+        elif material == 'GASB':
+            lambda_sq = wavelength ** 2
+            n_sq = params['A'] + params['B1']*lambda_sq/(lambda_sq - params['lambda1_sq']) \
+                   + params['B2']*lambda_sq/(lambda_sq - params['lambda1_sq'])
+
+        elif material == 'INAS':
+            lambda_sq = wavelength ** 2
+            n_sq = params['A'] + params['B1']*lambda_sq/(lambda_sq - params['lambda1_sq']) \
+                   + params['B2']*lambda_sq/(lambda_sq - params['lambda1_sq'])
+
+        elif material == 'SIO2':
+            lambda_sq = wavelength ** 2
+            n_sq = params['A'] + params['B1']*lambda_sq/(lambda_sq - params['lambda1_sq']) \
+                   + params['B2']*lambda_sq/(lambda_sq - params['lambda2_sq']) \
+                   + params['B3']*lambda_sq/(lambda_sq - params['lambda3_sq'])
+
+        elif material == 'SI3N4':
+            lambda_sq = wavelength ** 2
+            n_sq = params['A'] + params['B1']*lambda_sq/(lambda_sq - params['lambda1_sq'])
             
         else:
             n_sq = np.ones_like(wavelength) * 2.5
@@ -177,6 +270,15 @@ class OpticalConstants:
             n = n + params['temp_coef'] * 0
         
         return np.real(n)
+    
+    @staticmethod
+    def calc_substrate_index(wavelength_um, material='SIC'):
+        """衬底折射率（外延层折射率乘以材料相关缩放系数）"""
+        n_epi = OpticalConstants.calc_refractive_index(wavelength_um, material)
+        mat = str(material).strip().upper()
+        params = OpticalConstants._material_params.get(mat, OpticalConstants._material_params['SIC'])
+        scale = params.get('n_substrate_scale', 1.01)
+        return n_epi * scale
     
     @staticmethod
     def calc_complex_permittivity(wavenumber_cm, params):
@@ -231,11 +333,17 @@ class OpticalConstants:
     @staticmethod
     def list_supported_materials() -> list:
         """列出所有支持的材料"""
+        seen = set()
         materials = []
         for key, params in OpticalConstants._material_params.items():
+            if key in seen:
+                continue
+            seen.add(key)
             materials.append({
                 'key': key,
                 'name': params.get('name', key),
-                'bandgap_ev': params.get('bandgap', 0)
+                'formula': params.get('formula', key),
+                'desc': params.get('desc', ''),
+                'bandgap_ev': params.get('bandgap', 0),
             })
         return materials

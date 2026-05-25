@@ -1,68 +1,177 @@
-基于多光束干涉校正的半导体外延层厚度光谱反演系统 V1.0
+# 基于多光束干涉校正的半导体外延层厚度光谱反演系统 V1.0
 
-1. 系统简介 (软著申报专用说明)
+面向 Si / SiC 等半导体外延层的 **FTIR 反射光谱膜厚反演** Web 系统。用户导入光谱 → 预处理 → 自适应干涉模型拟合 → 结果入库、导出与报告。
 
-本系统是一款面向半导体材料（Si/SiC）制造与检测环节的专业级工业软件。系统采用前沿的 前后端分离 (B/S) 架构：
+技术栈：**FastAPI + Vue3 + ECharts + SQLAlchemy + SQLite**
 
-前端 (Frontend)： 基于 Vue.js 3.0 框架构建，提供现代化的 Web 用户交互界面、数据导入向导、以及基于 ECharts 的高逼真度光谱数据与残差可视化分析。
+---
 
-后端 (Backend)： 基于 Python FastAPI 构建高性能算法服务 API。集成了自主优化的双光束干涉模型、多光束干涉判定与校正模型（Airy模型结合差分进化算法），实现亚微米级的高精度膜厚反演。
+## 1. 系统功能
 
-软著申请定位： 本项目拥有完整的用户交互闭环、独立可运行的服务端与客户端代码、以及具有高度独创性的干涉反演算法内核，完全符合中国计算机软件著作权申请标准。
+| 模块 | 功能 |
+|------|------|
+| 数据导入 | CSV/TXT/XLSX 上传，内置样例，手动粘贴 |
+| 预处理 | SG/MA 滤波、波长裁剪、自动最优区间、ALS 基线、SiC Reststrahlen 剔除 |
+| 厚度反演 | 双光束 / Airy 多光束自适应、FFT 初值、差分进化 + LM 精修 |
+| 可视化 | 原始/拟合/残差图，框选波长范围，dataZoom 缩放 |
+| 数据管理 | SQLite 持久化，按薄膜编号检索，重测，Excel/PDF/打印报告 |
 
-2. 工程目录结构与模块说明
+---
 
-lowes-time/si/Si-zym/
-├── frontend/                     # 🖥️ 前端工程 (Vue 3)
-│   ├── package.json              # 前端依赖配置
-│   ├── vite.config.js            # 构建工具配置
-│   └── src/
-│       ├── api/index.js          # 与后端的 HTTP 请求拦截与接口封装
-│       ├── App.vue               # 前端主入口与页面核心视图 (集成Echarts图表)
-│
-├── src/si/                       # ⚙️ 后端工程 (Python)
-│   ├── main.py                   # 后端服务主入口 (启动 FastAPI 服务)
-│   ├── algorithms/               # 🌟 核心算法内核 (软著核心专利点)
-│   │   ├── __init__.py
-│   │   ├── preprocess.py         # 光谱平滑与极值提取算法
-│   │   ├── optical_constants.py  # 材料色散模型 (Sellmeier / Drude-Lorentz)
-│   │   └── models.py             # 双/多光束厚度反演核心数学模型
-│   └── backend/                  # 🔌 API 接口与业务逻辑层
-│       ├── exceptions.py         # 自定义异常处理类
-│       └── api/                  # 路由控制器
-│           ├── data.py           # 处理数据上传与解析 API
-│           └── calculation.py    # 处理核心厚度反演 API
-│
-├── requirements.txt              # 后端依赖
+## 2. 目录结构
 
+```
+Si/
+├── frontend/                 # Vue3 前端
+│   ├── src/
+│   │   ├── App.vue           # 主布局、流程状态、双视图切换
+│   │   ├── api/index.js      # HTTP 接口封装
+│   │   ├── main.js           # 入口
+│   │   └── components/
+│   │       ├── DataImport.vue       # 数据导入
+│   │       ├── PreprocessPanel.vue  # 预处理参数
+│   │       ├── CalculationPanel.vue # 材料、入射角、计算
+│   │       ├── ResultsLog.vue       # 结果指标与保存/导出
+│   │       ├── SpectrumChart.vue    # ECharts 光谱图
+│   │       ├── DatabasePanel.vue    # 历史记录 CRUD
+│   │       └── ReportTemplate.vue   # 浏览器打印报告
+│   └── vite.config.js        # 开发代理 /api → :8000
+├── src/si/                   # Python 后端
+│   ├── main.py               # FastAPI 入口、路由注册
+│   ├── algorithms/
+│   │   ├── models.py         # 干涉正演与反演核心
+│   │   ├── optical_constants.py  # Sellmeier 折射率
+│   │   ├── preprocess.py     # 平滑、极值检测
+│   │   ├── advanced_preprocess.py # ALS、Reststrahlen
+│   │   └── advanced_stats.py # 置信区间、SNR
+│   ├── backend/
+│   │   ├── api/
+│   │   │   ├── data.py       # 文件上传解析
+│   │   │   ├── preprocess.py # 预处理 API
+│   │   │   ├── calculation.py# 厚度反演 API
+│   │   │   ├── records.py    # 记录 CRUD + PDF
+│   │   │   └── materials.py  # 材料列表
+│   │   ├── models.py         # ORM：film_records / optical_data
+│   │   ├── database.py       # SQLite 连接
+│   │   ├── config.py         # 应用配置
+│   │   ├── exceptions.py     # 异常处理
+│   │   └── seed.py           # 数据库初始化
+│   └── utils/
+│       └── pdf_generator.py  # fpdf2 报告生成
+├── test_api.py               # 接口联调脚本
+├── test_si_2um.csv           # 样例数据
+├── test_sic_15um.csv
+├── test_sic_30um.csv
+├── pyproject.toml
+└── requirements.txt
+```
 
-3. 🚀 团队分工与当前缺失功能 (TODO List)
+---
 
-当前核心框架已经搭建完毕，核心数学模型（多光束差分进化算法等）已注入后端。为了打通全流程并冲击 3000 行代码，团队可继续完成以下填空与扩展：
+## 3. 算法说明
 
-👨‍💻 开发者 A：后端功能扩展与增强 (主攻 src/si/)
+### 3.1 流程
 
-多光束自动判定逻辑： 在 algorithms/models.py 中，将原 判定模型硅.py 中的 4 项指标（振荡对比度、精细度、相干长度等）封装进 detect_interference_level 函数。
+```
+原始光谱 → SG 平滑 → 极值检测 + FFT 光程差初值
+         → 四指标多光束判定（对比度/峰度/精细度/相干比）
+         → 弱干涉: 双光束 + least_squares
+         → 中强干涉: Airy + differential_evolution + least_squares
+         → 输出厚度、R²、置信半径、拟合曲线
+```
 
-自动化 PDF 测量报告生成 (软著扩展点 1)： 在 backend/ 下新增 report_generator.py，使用 reportlab 库，接收计算结果生成带有图表、实验参数表格的正规工业级 PDF 报告。
+### 3.2 核心公式
 
-数据库接入 (软著扩展点 2)： 引入 SQLite 或 PostgreSQL，使用 SQLAlchemy 将每一次的拟合结果（时间、厚度、R²）持久化存储。
+- **相位差**：δ = 4π n d cosθ / λ
+- **双光束**：界面 Fresnel 反射叠加近似
+- **Airy 多光束**：R = (r₀₁² + r₁₂² + 2r₀₁r₁₂cosδ) / (1 + r₀₁²r₁₂² + 2r₀₁r₁₂cosδ)
+- **FFT 厚度**：对去均值光谱做 FFT，光程差峰 → d = OPD / (2n cosθ)
 
-👨‍💻 开发者 B：前端交互细化与组件拆分 (主攻 frontend/)
+参考文献思路：MDPI Sensors 2026（SiC 多光束校正）、MMAA FFT 峰度判定、Transfer Matrix / Airy 多光束拟合。
 
-高级表单校验： 在 App.vue 的表单中，利用 Element Plus 的表单校验规则，限制“入射角”必须在 $0 \sim 90$ 度之间，“初估厚度”大于 0 等。
+---
 
-计算历史记录侧边栏： 开发一个 HistoryList.vue 组件，展示历史拟合记录，丰富系统完整度。
+## 4. API 接口
 
-加载动画优化： 多光束差分进化算法耗时约 3~10 秒，需在前端引入高逼格的骨架屏或 Loading 蒙层。
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| POST | `/api/upload` | 上传光谱文件 |
+| POST | `/api/preprocess` | 预处理（可选 ALS、Reststrahlen） |
+| POST | `/api/calculate` | 厚度反演 |
+| POST | `/api/export` | 导出 Excel |
+| GET | `/api/materials` | 材料列表 |
+| POST | `/api/records/` | 新建记录 |
+| GET | `/api/records/` | 分页列表（search=薄膜编号） |
+| GET | `/api/records/{id}` | 记录详情 |
+| GET | `/api/records/{id}/report` | 下载 PDF |
+| DELETE | `/api/records/{id}` | 删除记录 |
 
-4. 软著代码文档提取指南
+**计算请求示例：**
 
-由于采用了前后端分离，最终提交的 60页连续代码文档，建议按照以下顺序拼接：
+```json
+{
+  "wavelength": [5.0, 5.1, 5.2],
+  "reflectance": [0.45, 0.52, 0.48],
+  "material": "SIC",
+  "theta_deg": 10.0
+}
+```
 
-前端交互与图表引擎：frontend/src/App.vue (包含大量 ECharts 配置项代码)。
+数据库文件：`~/.si_thickness/si_data.db`
 
-后端路由控制器：src/si/main.py -> src/si/backend/api/calculation.py。
+---
 
-后端核心算法引擎：src/si/algorithms/models.py -> optical_constants.py (这部分含有密集的物理数学公式，是体现独创性的核心)。
-(注意：复制到 Word 时，请删除空行，确保每页有效代码至少 50 行)
+## 5. 启动方式
+
+### 后端
+
+```bash
+cd Si
+pip install -r requirements.txt
+# 若项目路径含中文，勿使用 pip install -e .，改用 PYTHONPATH：
+# Windows: set PYTHONPATH=%CD%\src
+# Linux/macOS: export PYTHONPATH=$PWD/src
+python -m uvicorn si.main:app --host 0.0.0.0 --port 8000
+```
+
+### 前端
+
+```bash
+cd Si/frontend
+npm install
+npm run dev
+# 浏览器 http://localhost:5173
+```
+
+### 构建
+
+```bash
+cd frontend && npm run build
+```
+
+### 接口测试
+
+```bash
+# 先启动后端
+python test_api.py
+```
+
+---
+
+## 6. 软著代码文档提取建议
+
+共约 60 页 × 50 行，推荐顺序：
+
+1. **前端交互**（约 20 页）：`App.vue` → `SpectrumChart.vue` → `CalculationPanel.vue`
+2. **后端 API**（约 15 页）：`main.py` → `calculation.py` → `records.py`
+3. **算法内核**（约 25 页）：`models.py` → `optical_constants.py` → `preprocess.py`
+
+复制到 Word 时删除空行，保证每页有效代码 ≥ 50 行。
+
+---
+
+## 7. 版本信息
+
+- 版本：V1.0
+- Python：≥ 3.12
+- 前端：Vue 3 + Element Plus + ECharts 5

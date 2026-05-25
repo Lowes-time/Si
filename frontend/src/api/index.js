@@ -22,6 +22,10 @@ export function calculate(params) {
   return api.post("/api/calculate", params);
 }
 
+export function fetchMaterials() {
+  return api.get("/api/materials");
+}
+
 /** 导出结果 */
 export function exportResult(params) {
   return api.post("/api/export", params, { responseType: "blob" });
@@ -46,4 +50,8 @@ export const deleteRecord = (id) => {
 
 export const getReportUrl = (id) => {
   return `/api/records/${id}/report`;
+};
+
+export const downloadReport = (id) => {
+  return api.get(`/api/records/${id}/report`, { responseType: "blob" });
 };

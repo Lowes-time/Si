@@ -1,7 +1,5 @@
 <!--
-  软件名称：基于多光束干涉校正的半导体外延层厚度光谱反演系统 V1.0
-  组件功能：光谱预处理设置面板
-  描述：平滑滤波、基线校正、数据范围选择、自动最优区间检测
+  预处理：波长区间、滤波、ALS 与 SiC 带剔除
 -->
 <template>
   <div class="preprocess-panel">
@@ -100,14 +98,14 @@
     <div class="form-group">
       <div class="form-label-row">
         <label class="form-label">窗口大小</label>
-        <span class="form-value-tag">{{ window }}</span>
+        <span class="form-value-tag">{{ window === 0 ? '自动' : window }}</span>
       </div>
       <el-slider
         v-model="window"
-        :min="5"
+        :min="0"
         :max="51"
         :step="2"
-        :marks="{ 5: '5', 15: '15', 31: '31', 51: '51' }"
+        :marks="{ 0: '自动', 5: '5', 15: '15', 31: '31', 51: '51' }"
       />
     </div>
 
@@ -115,7 +113,17 @@
     <div class="form-group inline-group">
       <label class="form-label">归一化</label>
       <el-switch v-model="normalize" size="small" />
-      <span class="inline-hint">{{ normalize ? '映射到 [0, 1] 区间' : '保持原始量纲' }}</span>
+      <span class="inline-hint">{{ normalize ? '映射到 [0, 1]' : '原始量纲' }}</span>
+    </div>
+
+    <div class="form-group inline-group">
+      <label class="form-label">ALS 基线</label>
+      <el-switch v-model="useAls" size="small" />
+    </div>
+
+    <div class="form-group inline-group">
+      <label class="form-label">SiC 剩余射线剔除</label>
+      <el-switch v-model="maskReststrahlen" size="small" />
     </div>
 
     <!-- 操作按钮 -->
@@ -140,7 +148,10 @@ import { preprocess } from "../api/index.js";
 export default {
   name: "PreprocessPanel",
   components: { Filter, TrendCharts, VideoPlay, FullScreen, InfoFilled },
-  props: { rawData: { type: Object, default: null } },
+  props: {
+    rawData: { type: Object, default: null },
+    chartRange: { type: Object, default: null },
+  },
   emits: ["preprocessed"],
   data() {
     return {
@@ -150,8 +161,10 @@ export default {
       minPoints: 50,
       scanWindow: 100,
       method: "sg",
-      window: 15,
+      window: 0,
       normalize: false,
+      useAls: false,
+      maskReststrahlen: false,
       processing: false
     };
   },
@@ -164,6 +177,13 @@ export default {
         }
       },
       immediate: true
+    },
+    chartRange(val) {
+      if (val && val.start != null && val.end != null) {
+        this.rangeMode = "manual";
+        this.rangeStart = val.start;
+        this.rangeEnd = val.end;
+      }
     }
   },
   methods: {
@@ -210,12 +230,18 @@ export default {
         const res = await preprocess({
           wavelength: wavelength,
           reflectance: reflectance,
+          material: this.rawData.suggested_material || "SIC",
           method: this.method,
           window: this.window,
           normalize: this.normalize,
+          use_als: this.useAls,
+          mask_reststrahlen: this.maskReststrahlen,
         });
         
         if (res.data.success) {
+          if (res.data.used_window) {
+            this.$message.info(`平滑窗口: ${res.data.used_window}`);
+          }
           // 确定实际使用的数据范围
           let actualStart, actualEnd;
           if (this.rangeMode === 'full') {

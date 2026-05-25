@@ -1,7 +1,5 @@
 <!--
-  软件名称：基于多光束干涉校正的半导体外延层厚度光谱反演系统 V1.0
-  组件功能：膜厚反演计算面板
-  描述：材料选择、入射角设置、执行厚度拟合与反演计算
+  膜厚反演：材料、入射角、计算与快捷导出
 -->
 <template>
   <div class="calculation-panel">
@@ -89,7 +87,7 @@
 
 <script>
 import { CircleCheckFilled, Cpu, Download, FolderAdd, InfoFilled } from "@element-plus/icons-vue";
-import { calculate } from "../api/index.js";
+import { calculate, fetchMaterials } from "../api/index.js";
 import { ElMessage } from "element-plus";
 
 export default {
@@ -107,17 +105,18 @@ export default {
       calculating: false,
       hasResult: false,
       lastResult: null,
-      materialOptions: [
-        { key: "SIC", formula: "SiC", name_cn: "碳化硅", desc: "功率器件/射频" },
-        { key: "SI", formula: "Si", name_cn: "硅", desc: "IC/太阳能" },
-        { key: "GAN", formula: "GaN", name_cn: "氮化镓", desc: "蓝光LED" },
-        { key: "ALN", formula: "AlN", name_cn: "氮化铝", desc: "UVC LED" },
-        { key: "INP", formula: "InP", name_cn: "磷化铟", desc: "光通信" },
-        { key: "GAAS", formula: "GaAs", name_cn: "砷化镓", desc: "射频/激光" },
-        { key: "ZNO", formula: "ZnO", name_cn: "氧化锌", desc: "UV/压电" },
-        { key: "C", formula: "C", name_cn: "金刚石", desc: "高功率/探测" },
-      ]
+      materialOptions: [],
     };
+  },
+  mounted() {
+    this.loadMaterials();
+  },
+  watch: {
+    rawData(val) {
+      if (val?.suggested_material) {
+        this.material = val.suggested_material;
+      }
+    },
   },
   computed: {
     // 优先使用经过预处理/范围选择后的数据
@@ -132,6 +131,23 @@ export default {
     }
   },
   methods: {
+    async loadMaterials() {
+      try {
+        const res = await fetchMaterials();
+        const list = res.data?.data || [];
+        this.materialOptions = list.map((m) => ({
+          key: m.key,
+          formula: m.formula || m.key,
+          name_cn: (m.name || "").split("(")[0].trim() || m.key,
+          desc: m.desc || "",
+        }));
+      } catch (e) {
+        this.materialOptions = [
+          { key: "SIC", formula: "SiC", name_cn: "碳化硅", desc: "功率器件" },
+          { key: "SI", formula: "Si", name_cn: "硅", desc: "IC衬底" },
+        ];
+      }
+    },
     async doCalculate() {
       if (!this.effectiveData) {
         ElMessage.warning("请先导入数据并执行预处理");
@@ -155,6 +171,7 @@ export default {
           this.hasResult = true;
           this.lastResult = res.data.result;
           this.lastResult.theta_deg = this.thetaDeg;
+          this.lastResult.material_type = this.material;
           // 传递拟合数据范围信息
           this.lastResult.fit_range = {
             start: this.effectiveData.wl_range_start || this.effectiveData.wl_min || 0,
@@ -223,8 +240,11 @@ export default {
 
 .material-grid { 
   display: grid; 
-  grid-template-columns: repeat(4, 1fr); 
-  gap: 8px; 
+  grid-template-columns: repeat(3, 1fr); 
+  gap: 8px;
+  max-height: 220px;
+  overflow-y: auto;
+  padding-right: 4px;
 }
 
 .material-card {

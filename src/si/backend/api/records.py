@@ -7,12 +7,14 @@ import pandas as pd
 from datetime import datetime
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import Response
 from sqlalchemy.orm import Session
 from sqlalchemy import insert, text
 from pydantic import BaseModel
 
 from si.backend.database import get_db, engine
 from si.backend.models import FilmRecord, OpticalData
+from si.utils.pdf_generator import build_record_pdf
 
 router = APIRouter(prefix="/api/records", tags=["records"])
 
@@ -209,3 +211,28 @@ def delete_record(record_id: int, db: Session = Depends(get_db)):
     db.delete(db_record)
     db.commit()
     return {"success": True, "message": "记录已删除"}
+
+
+@router.get("/{record_id}/report")
+def download_report(record_id: int, db: Session = Depends(get_db)):
+    """下载 PDF 检测报告"""
+    db_record = db.query(FilmRecord).filter(FilmRecord.id == record_id).first()
+    if not db_record:
+        raise HTTPException(status_code=404, detail="记录不存在")
+
+    payload = {
+        "film_code": db_record.film_code,
+        "material_type": db_record.material_type,
+        "thickness_um": db_record.thickness_um,
+        "r_squared": db_record.r_squared,
+        "multi_beam_level": db_record.multi_beam_level,
+        "theta_deg": db_record.theta_deg,
+        "notes": db_record.notes,
+    }
+    pdf_bytes = build_record_pdf(payload)
+    filename = f"report_{db_record.film_code}.pdf".replace(" ", "_")
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )

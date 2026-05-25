@@ -1,8 +1,4 @@
-<!--
-  软件名称：基于多光束干涉校正的半导体外延层厚度光谱反演系统 V1.0
-  组件功能：分析结果展示与日志记录
-  描述：显示拟合厚度、R²等核心指标和操作日志
--->
+<!-- 分析结果：指标、保存导出、日志 -->
 <template>
   <div class="results-log">
     <!-- 空状态 -->
@@ -36,6 +32,33 @@
             {{ result.multi_beam_level }}
           </div>
         </div>
+        <div v-if="result.fit_model" class="result-card">
+          <div class="rc-label">拟合模型</div>
+          <div class="rc-value sub">{{ modelLabel }}</div>
+        </div>
+        <div v-if="result.fft_thickness_um" class="result-card">
+          <div class="rc-label">FFT 校验</div>
+          <div class="rc-value sub">{{ result.fft_thickness_um }} <span class="rc-unit">μm</span></div>
+        </div>
+        <div v-if="result.thickness_ci" class="result-card">
+          <div class="rc-label">厚度置信半径</div>
+          <div class="rc-value sub">± {{ result.thickness_ci }} <span class="rc-unit">μm</span></div>
+        </div>
+      </div>
+
+      <div class="action-bar">
+        <el-button type="primary" plain @click="$emit('save')">
+          <el-icon><FolderAdd /></el-icon>
+          保存入库
+        </el-button>
+        <el-button @click="$emit('export')">
+          <el-icon><Download /></el-icon>
+          Excel
+        </el-button>
+        <el-button @click="$emit('history')">
+          <el-icon><Clock /></el-icon>
+          历史记录
+        </el-button>
       </div>
 
       <!-- 操作日志 -->
@@ -70,11 +93,12 @@
 </template>
 
 <script>
-import { Timer, List } from "@element-plus/icons-vue";
+import { Timer, List, FolderAdd, Download, Clock } from "@element-plus/icons-vue";
 
 export default {
   name: "ResultsLog",
-  components: { Timer, List },
+  components: { Timer, List, FolderAdd, Download, Clock },
+  emits: ["save", "export", "history"],
   props: {
     log: { type: Array, default: () => [] },
     result: { type: Object, default: null },
@@ -96,7 +120,13 @@ export default {
       const start = (this.currentPage - 1) * this.pageSize;
       const end = start + this.pageSize;
       return this.log.slice().reverse().slice(start, end);
-    }
+    },
+    modelLabel() {
+      const m = this.result?.fit_model;
+      if (m === "airy") return "Airy 多光束";
+      if (m === "two_beam") return "双光束";
+      return m || "-";
+    },
   },
   watch: {
     log() {
@@ -143,6 +173,13 @@ export default {
 .beam-dot.danger { background: #F53F3F; }
 .beam-dot.warning { background: #FF7D00; }
 .beam-dot.info { background: #165DFF; }
+
+.action-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.action-bar .el-button { flex: 1; min-width: 90px; border-radius: 8px; }
 
 /* 操作日志 */
 .log-section {

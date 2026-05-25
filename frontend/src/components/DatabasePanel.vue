@@ -1,7 +1,5 @@
 <!--
-  软件名称：基于多光束干涉校正的半导体外延层厚度光谱反演系统 V1.0
-  组件功能：历史记录管理面板
-  描述：历史记录查询、删除、重测、报告打印功能
+  历史记录：查询、重测、打印与 PDF 下载
 -->
 <template>
   <div class="database-container">
@@ -43,10 +41,11 @@
           {{ formatTime(row.created_at) }}
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="240" fixed="right" align="center">
+      <el-table-column label="操作" width="300" fixed="right" align="center">
         <template #default="{ row }">
           <el-button link type="primary" icon="RefreshLeft" @click="handleRetest(row)">重测</el-button>
-          <el-button link type="primary" icon="Printer" @click="openPrintPreview(row)">报告</el-button>
+          <el-button link type="primary" icon="Printer" @click="openPrintPreview(row)">打印</el-button>
+          <el-button link type="primary" icon="Download" @click="handleDownloadPdf(row)">PDF</el-button>
           <el-popconfirm title="确定要删除这条记录吗？" confirm-button-text="确定" cancel-button-text="取消" @confirm="handleDelete(row)">
             <template #reference>
               <el-button link type="danger" icon="Delete">删除</el-button>
@@ -73,8 +72,8 @@
 
 <script setup>
 import { ref, onMounted } from "vue";
-import { Search, Refresh, Delete, RefreshLeft, Printer } from "@element-plus/icons-vue";
-import { fetchRecords, deleteRecord, fetchRecordDetail } from "../api/index.js";
+import { Search, Refresh, Delete, RefreshLeft, Printer, Download } from "@element-plus/icons-vue";
+import { fetchRecords, deleteRecord, fetchRecordDetail, downloadReport } from "../api/index.js";
 import { ElMessage } from "element-plus";
 import ReportTemplate from "./ReportTemplate.vue";
 
@@ -137,6 +136,21 @@ const openPrintPreview = async (row) => {
     printVisible.value = true;
   } catch (e) {
     ElMessage.error("获取详情失败: " + e.message);
+  }
+};
+
+const handleDownloadPdf = async (row) => {
+  try {
+    const res = await downloadReport(row.id);
+    const url = URL.createObjectURL(new Blob([res.data], { type: "application/pdf" }));
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `report_${row.film_code}.pdf`.replace(/\s/g, "_");
+    a.click();
+    URL.revokeObjectURL(url);
+    ElMessage.success("PDF 报告已下载");
+  } catch (e) {
+    ElMessage.error("PDF 下载失败: " + e.message);
   }
 };
 

@@ -1,8 +1,4 @@
-<!--
-  软件名称：基于多光束干涉校正的半导体外延层厚度光谱反演系统 V1.0
-  组件功能：数据导入模块
-  描述：支持文件上传、示例数据加载、手动输入三种数据导入方式
--->
+<!-- 数据导入：文件上传、示例数据、手动粘贴 -->
 <template>
   <div class="data-import">
     <!-- 标签页：上传/示例/手动输入 -->
@@ -129,6 +125,14 @@
 import { FolderOpened, Document, Grid, TrendCharts, Delete } from "@element-plus/icons-vue";
 import { uploadFile } from "../api/index.js";
 
+const SAMPLE_FILES = {
+  sic_15: { file: "/samples/test_sic_15um.csv", name: "SiC-15μm", material: "SIC", thick: "15 μm" },
+  sic_30: { file: "/samples/test_sic_30um.csv", name: "SiC-30μm", material: "SIC", thick: "30 μm" },
+  si_2: { file: "/samples/test_si_2um.csv", name: "Si-2μm", material: "SI", thick: "2 μm" },
+  gaas_5: { file: "/samples/test_gaas_5um.csv", name: "GaAs-5μm", material: "GAAS", thick: "5 μm" },
+  ge_8: { file: "/samples/test_ge_8um.csv", name: "Ge-8μm", material: "GE", thick: "8 μm" },
+};
+
 export default {
   name: "DataImport",
   components: { FolderOpened, Document, Grid, TrendCharts, Delete },
@@ -142,9 +146,11 @@ export default {
       dataSummary: null,
       manualData: "",
       sampleDataList: [
-        { key: "sic_15", name: "SiC-15μm", info: "碳化硅薄膜 15微米" },
-        { key: "sic_30", name: "SiC-30μm", info: "碳化硅薄膜 30微米" },
-        { key: "si_2", name: "Si-2μm", info: "硅薄膜 2微米" }
+        { key: "sic_15", name: "SiC-15μm", info: "理论厚度 15 μm" },
+        { key: "sic_30", name: "SiC-30μm", info: "理论厚度 30 μm" },
+        { key: "si_2", name: "Si-2μm", info: "理论厚度 2 μm" },
+        { key: "gaas_5", name: "GaAs-5μm", info: "理论厚度 5 μm" },
+        { key: "ge_8", name: "Ge-8μm", info: "理论厚度 8 μm" },
       ]
     };
   },
@@ -184,51 +190,43 @@ export default {
         this.uploading = false;
       }
     },
-    loadSampleData(key) {
-      // 根据不同示例生成模拟数据
-      const sampleData = this.generateSampleData(key);
-      this.dataSummary = {
-        film_code: sampleData.filmCode,
-        row_count: sampleData.wavelength.length,
-        wavelength: sampleData.wavelength,
-        reflectance: sampleData.reflectance,
-        wl_min: Math.min(...sampleData.wavelength).toFixed(2),
-        wl_max: Math.max(...sampleData.wavelength).toFixed(2)
-      };
-      this.$emit("data-loaded", this.dataSummary);
-      this.$message.success("示例数据加载成功");
+    async loadSampleData(key) {
+      const meta = SAMPLE_FILES[key];
+      if (!meta) return;
+      try {
+        const resp = await fetch(meta.file);
+        const text = await resp.text();
+        const lines = text.trim().split("\n");
+        const wavelength = [];
+        const reflectance = [];
+        for (let i = 1; i < lines.length; i++) {
+          const parts = lines[i].split(",");
+          if (parts.length < 2) continue;
+          const wn = parseFloat(parts[0]);
+          let ref = parseFloat(parts[1]);
+          if (ref > 2) ref /= 100;
+          wavelength.push(10000 / wn);
+          reflectance.push(ref);
+        }
+        this.dataSummary = {
+          filename: meta.file.split("/").pop(),
+          film_code: meta.name,
+          suggested_material: meta.material,
+          row_count: wavelength.length,
+          wavelength,
+          reflectance,
+          wl_min: Math.min(...wavelength).toFixed(2),
+          wl_max: Math.max(...wavelength).toFixed(2),
+        };
+        this.$emit("data-loaded", this.dataSummary);
+        this.$message.success(`${meta.name} 已加载（${meta.thick}）`);
+      } catch (e) {
+        this.$message.error("示例加载失败: " + e.message);
+      }
     },
     generateSampleData(key) {
-      // 生成示例光谱数据
-      const wavelengths = [];
-      const reflectances = [];
-      const baseWl = 8.0;
-      const step = 0.1;
-      const count = 120;
-      
-      for (let i = 0; i < count; i++) {
-        wavelengths.push(baseWl + i * step);
-      }
-      
-      // 根据不同材料生成不同的干涉图样
-      let thickness = 15;
-      let n = 2.6; // 折射率
-      if (key === "sic_30") { thickness = 30; n = 2.65; }
-      if (key === "si_2") { thickness = 2; n = 3.4; }
-      
-      for (let i = 0; i < count; i++) {
-        const wl = wavelengths[i];
-        // 干涉公式计算反射率
-        const delta = (4 * Math.PI * thickness * n * Math.cos(10 * Math.PI / 180)) / wl;
-        const r = 0.5 + 0.35 * Math.cos(delta + Math.PI) + 0.1 * Math.sin(delta * 0.5);
-        reflectances.push(Math.max(0.1, Math.min(0.95, r + (Math.random() - 0.5) * 0.02)));
-      }
-      
-      return {
-        filmCode: key.toUpperCase().replace("_", "-"),
-        wavelength: wavelengths,
-        reflectance: reflectances
-      };
+      // 保留作离线兜底，正常走 loadSampleData
+      return this.loadSampleData(key);
     },
     parseManualData() {
       try {

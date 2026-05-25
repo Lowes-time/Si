@@ -1,8 +1,4 @@
-<!--
-  软件名称：基于多光束干涉校正的半导体外延层厚度光谱反演系统 V1.0
-  组件功能：测量报告模板
-  描述：生成可打印的测量分析报告，包含数据可视化图表
--->
+<!-- 可打印测量报告 HTML 模板 -->
 <template>
   <div class="report-print-container" v-if="record">
     <!-- 报告头部 -->
@@ -148,7 +144,7 @@
           <li>采用双光束干涉模型进行正演计算</li>
           <li>使用非线性最小二乘法拟合优化厚度参数</li>
           <li>通过反射率对比度判定多光束干涉等级</li>
-          <li>支持 8 种主流半导体材料的折射率计算</li>
+          <li>支持 13 种主流半导体材料的折射率计算</li>
         </ul>
       </div>
     </div>
@@ -180,14 +176,19 @@ let resizeObserver = null;
 
 // 材料名称映射
 const materialNames = {
-  'SIC': '碳化硅 (4H-SiC)',
-  'SI': '硅 (Si)',
-  'GAN': '氮化镓 (GaN)',
-  'ALN': '氮化铝 (AlN)',
-  'INP': '磷化铟 (InP)',
-  'GAAS': '砷化镓 (GaAs)',
-  'ZNO': '氧化锌 (ZnO)',
-  'C': '金刚石 (C)'
+  SIC: "碳化硅 (4H-SiC)",
+  SI: "硅 (Si)",
+  GAN: "氮化镓 (GaN)",
+  ALN: "氮化铝 (AlN)",
+  INP: "磷化铟 (InP)",
+  GAAS: "砷化镓 (GaAs)",
+  ZNO: "氧化锌 (ZnO)",
+  C: "金刚石 (C)",
+  GE: "锗 (Ge)",
+  GASB: "砷化镓锑 (GaSb)",
+  INAS: "砷化铟 (InAs)",
+  SIO2: "二氧化硅 (SiO2)",
+  SI3N4: "氮化硅 (Si3N4)",
 };
 
 const formatTime = (timeStr) => {

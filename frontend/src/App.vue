@@ -1,7 +1,5 @@
 <!--
-  软件名称：基于多光束干涉校正的半导体外延层厚度光谱反演系统 V1.0
-  软件功能：主应用组件，负责整体布局、流程控制和状态管理
-  描述：半导体薄膜厚度测量分析系统主界面，包含数据导入、预处理、膜厚反演和历史记录管理
+  主应用：流程编排与双视图（实时分析 / 历史记录）
 -->
 <template>
   <div class="app-container">
@@ -53,7 +51,7 @@
                     <span class="step-label">预处理设置</span>
                   </div>
                 </template>
-                <PreprocessPanel :raw-data="rawData" @preprocessed="onPreprocessed" />
+                <PreprocessPanel :raw-data="rawData" :chart-range="chartRange" @preprocessed="onPreprocessed" />
               </el-collapse-item>
               <el-collapse-item name="calculate" :disabled="!rawData">
                 <template #title>
@@ -74,13 +72,24 @@
                     <span class="step-label">分析结果</span>
                   </div>
                 </template>
-                <ResultsLog :log="resultLog" :result="calcResult" />
+                <ResultsLog
+                  :log="resultLog"
+                  :result="calcResult"
+                  @save="onSaveRecord"
+                  @export="onExport"
+                  @history="activeView = 'history'"
+                />
               </el-collapse-item>
             </el-collapse>
           </div>
         </aside>
         <main class="chart-area">
-          <SpectrumChart :raw-data="rawData" :processed-data="processedData" :calc-result="calcResult" />
+          <SpectrumChart
+            :raw-data="rawData"
+            :processed-data="processedData"
+            :calc-result="calcResult"
+            @range-selected="onChartRangeSelected"
+          />
         </main>
       </template>
       <template v-else>
@@ -116,7 +125,7 @@
         <div class="about-info">
           <p>基于多光束干涉校正的半导体外延层厚度光谱反演系统</p>
           <ul>
-            <li>支持 8 种半导体材料</li>
+            <li>支持 13 种半导体材料</li>
             <li>高精度光学薄膜厚度测量</li>
             <li>实时数据可视化分析</li>
             <li>历史记录管理</li>
@@ -137,7 +146,7 @@
             <p>系统支持三种数据导入方式：</p>
             <ul>
               <li><strong>文件上传</strong>：拖拽或点击上传 CSV/TXT/XLSX 格式的光谱数据文件</li>
-              <li><strong>示例数据</strong>：内置 SiC-15μm、SiC-30μm、Si-2μm 三种示例数据供演示使用</li>
+              <li><strong>示例数据</strong>：内置 SiC/Si/GaAs/Ge 等演示样例，可直接加载验证拟合效果</li>
               <li><strong>手动输入</strong>：直接粘贴或输入波长和反射率数据（格式：波长,反射率）</li>
             </ul>
           </div>
@@ -158,7 +167,7 @@
             <h3>三、材料选择与计算</h3>
             <p>在膜厚反演面板中：</p>
             <ul>
-              <li>选择对应的半导体基底材料（支持 8 种材料）</li>
+              <li>选择对应的半导体基底材料（支持 13 种材料）</li>
               <li>设置入射角（0-89°）</li>
               <li>点击"执行厚度拟合与反演"进行计算</li>
             </ul>
@@ -180,12 +189,17 @@
             <div class="material-list">
               <div class="material-item"><span class="mat-name">SiC</span><span class="mat-desc">碳化硅 - 功率器件、射频</span></div>
               <div class="material-item"><span class="mat-name">Si</span><span class="mat-desc">硅 - IC衬底、太阳能</span></div>
-              <div class="material-item"><span class="mat-name">GaN</span><span class="mat-desc">氮化镓 - 蓝光LED</span></div>
+              <div class="material-item"><span class="mat-name">GaN</span><span class="mat-desc">氮化镓 - 蓝光LED、功率</span></div>
               <div class="material-item"><span class="mat-name">AlN</span><span class="mat-desc">氮化铝 - UVC LED</span></div>
               <div class="material-item"><span class="mat-name">InP</span><span class="mat-desc">磷化铟 - 光通信</span></div>
-              <div class="material-item"><span class="mat-name">GaAs</span><span class="mat-desc">砷化镓 - 射频激光</span></div>
-              <div class="material-item"><span class="mat-name">ZnO</span><span class="mat-desc">氧化锌 - UV压电</span></div>
+              <div class="material-item"><span class="mat-name">GaAs</span><span class="mat-desc">砷化镓 - 射频、激光</span></div>
+              <div class="material-item"><span class="mat-name">ZnO</span><span class="mat-desc">氧化锌 - UV、压电</span></div>
               <div class="material-item"><span class="mat-name">C</span><span class="mat-desc">金刚石 - 高功率探测</span></div>
+              <div class="material-item"><span class="mat-name">Ge</span><span class="mat-desc">锗 - 红外光学</span></div>
+              <div class="material-item"><span class="mat-name">GaSb</span><span class="mat-desc">砷化镓锑 - 红外激光</span></div>
+              <div class="material-item"><span class="mat-name">InAs</span><span class="mat-desc">砷化铟 - 中红外器件</span></div>
+              <div class="material-item"><span class="mat-name">SiO2</span><span class="mat-desc">二氧化硅 - 栅氧、钝化</span></div>
+              <div class="material-item"><span class="mat-name">Si3N4</span><span class="mat-desc">氮化硅 - 应力缓冲</span></div>
             </div>
           </div>
         </div>
@@ -250,7 +264,7 @@ import ResultsLog from "./components/ResultsLog.vue";
 import SpectrumChart from "./components/SpectrumChart.vue";
 import DatabasePanel from "./components/DatabasePanel.vue";
 import { exportResult, saveRecord } from "./api/index.js";
-import { ElMessage } from "element-plus";
+import { ElMessage, ElMessageBox } from "element-plus";
 
 export default {
   name: "App",
@@ -274,6 +288,8 @@ export default {
       calcResult: null,
       resultLog: [],
       activePanels: ["import"],
+      selectedMaterial: "SIC",
+      chartRange: null,
     };
   },
   watch: {
@@ -293,8 +309,9 @@ export default {
     },
     calcResult(val) {
       if (val) {
-        const idx = this.activePanels.indexOf("calculate");
-        if (idx !== -1) this.activePanels.splice(idx, 1);
+        if (!this.activePanels.includes("calculate")) {
+          this.activePanels.push("calculate");
+        }
         if (!this.activePanels.includes("results")) {
           this.activePanels.push("results");
         }
@@ -302,6 +319,15 @@ export default {
     },
   },
   methods: {
+    onChartRangeSelected(range) {
+      this.chartRange = range;
+      if (range) {
+        this.addLog(`图表框选范围: ${range.start.toFixed(2)} - ${range.end.toFixed(2)} μm`);
+        if (!this.activePanels.includes("preprocess")) {
+          this.activePanels.push("preprocess");
+        }
+      }
+    },
     onDataLoaded(data) {
       this.rawData = data;
       this.processedData = null;
@@ -328,11 +354,19 @@ export default {
     },
     onCalculated(result) {
       this.calcResult = result;
+      if (result.material_type) {
+        this.selectedMaterial = result.material_type;
+      }
       this.addLog("初估厚度: " + result.init_thickness_um + " μm");
       this.addLog("干涉判定: " + result.multi_beam_level);
       this.addLog("拟合厚度: " + result.thickness_um + " μm");
       this.addLog("拟合优度 R²: " + result.r_squared);
-      this.$nextTick(() => { this.activePanels = ["results"]; });
+      if (result.fit_model) {
+        this.addLog("拟合模型: " + result.fit_model);
+      }
+      this.$nextTick(() => {
+        this.activePanels = ["calculate", "results"];
+      });
     },
     async onExport() {
       if (!this.calcResult) return;
@@ -356,6 +390,7 @@ export default {
     },
     async onSaveRecord(material) {
       if (!this.calcResult || !this.rawData) return;
+      const mat = material || this.calcResult.material_type || this.selectedMaterial;
       const filmCode = await this.promptFilmCode();
       if (!filmCode) {
         ElMessage.warning("已取消保存");
@@ -370,7 +405,7 @@ export default {
         }));
         await saveRecord({
           film_code: filmCode,
-          material_type: material,
+          material_type: mat,
           thickness_um: this.calcResult.thickness_um,
           r_squared: this.calcResult.r_squared,
           multi_beam_level: this.calcResult.multi_beam_level,
@@ -378,8 +413,14 @@ export default {
           notes: "",
           optical_data: opticalData
         });
-        ElMessage.success("数据已成功保存至数据库");
-        this.addLog("分析结果已存入本地数据库");
+        this.addLog("分析结果已存入本地数据库: " + filmCode);
+        ElMessageBox.confirm("记录已保存，是否前往历史记录查看？", "保存成功", {
+          confirmButtonText: "查看历史",
+          cancelButtonText: "继续分析",
+          type: "success",
+        }).then(() => {
+          this.activeView = "history";
+        }).catch(() => {});
       } catch (e) {
         ElMessage.error("保存失败: " + e.message);
       }
