@@ -133,6 +133,12 @@ const SAMPLE_FILES = {
   ge_8: { file: "/samples/test_ge_8um.csv", name: "Ge-8μm", material: "GE", thick: "8 μm" },
 };
 
+const SAMPLE_LIST = Object.entries(SAMPLE_FILES).map(([key, m]) => ({
+  key,
+  name: m.name,
+  info: `理论厚度 ${m.thick}`,
+}));
+
 export default {
   name: "DataImport",
   components: { FolderOpened, Document, Grid, TrendCharts, Delete },
@@ -145,13 +151,7 @@ export default {
       dragover: false,
       dataSummary: null,
       manualData: "",
-      sampleDataList: [
-        { key: "sic_15", name: "SiC-15μm", info: "理论厚度 15 μm" },
-        { key: "sic_30", name: "SiC-30μm", info: "理论厚度 30 μm" },
-        { key: "si_2", name: "Si-2μm", info: "理论厚度 2 μm" },
-        { key: "gaas_5", name: "GaAs-5μm", info: "理论厚度 5 μm" },
-        { key: "ge_8", name: "Ge-8μm", info: "理论厚度 8 μm" },
-      ]
+      sampleDataList: SAMPLE_LIST,
     };
   },
   methods: {

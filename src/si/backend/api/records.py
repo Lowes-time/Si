@@ -1,8 +1,5 @@
 # -*- coding: utf-8 -*-
-"""
-薄膜分析记录API：CRUD操作
-支持按薄膜编号(film_code)查询和管理历史记录
-"""
+"""薄膜分析记录 API：入库、检索、PDF 报告"""
 import pandas as pd
 from datetime import datetime
 from typing import List, Optional
@@ -20,7 +17,6 @@ router = APIRouter(prefix="/api/records", tags=["records"])
 
 
 class OpticalDataItem(BaseModel):
-    """单个光学数据点"""
     wavelength: float
     reflectance: float
     fitted_reflectance: Optional[float] = None
@@ -28,7 +24,6 @@ class OpticalDataItem(BaseModel):
 
 
 class RecordCreate(BaseModel):
-    """创建薄膜分析记录的请求模型"""
     film_code: str
     material_type: str
     thickness_um: Optional[float] = None
@@ -40,7 +35,6 @@ class RecordCreate(BaseModel):
 
 
 class RecordResponse(BaseModel):
-    """薄膜分析记录响应模型"""
     id: int
     film_code: str
     material_type: str
@@ -56,7 +50,6 @@ class RecordResponse(BaseModel):
 
 
 class RecordListResponse(BaseModel):
-    """薄膜分析记录列表响应模型（带分页）"""
     data: List[RecordResponse]
     total: int
     skip: int
@@ -65,15 +58,7 @@ class RecordListResponse(BaseModel):
 
 @router.post("/", response_model=RecordResponse)
 def create_record(record: RecordCreate, db: Session = Depends(get_db)):
-    """
-    创建新的薄膜分析记录
-    
-    Args:
-        record: 包含薄膜编号、材质、计算结果和光学数据的记录对象
-    
-    Returns:
-        新创建的记录信息
-    """
+    """新建一条膜厚分析记录并写入光学数据点"""
     # 创建薄膜记录
     db_record = FilmRecord(
         film_code=record.film_code,
@@ -114,18 +99,7 @@ def read_records(
     search: Optional[str] = None,
     db: Session = Depends(get_db)
 ):
-    """
-    查询薄膜分析记录列表（支持分页）
-    
-    Args:
-        skip: 分页偏移量
-        limit: 每页记录数限制
-        search: 按薄膜编号模糊搜索
-        db: 数据库会话
-    
-    Returns:
-        包含数据和总数信息的分页响应
-    """
+    """分页查询记录，search 按薄膜编号模糊匹配"""
     query = db.query(FilmRecord)
     
     if search:
@@ -147,16 +121,7 @@ def read_records(
 
 @router.get("/{record_id}")
 def read_record(record_id: int, db: Session = Depends(get_db)):
-    """
-    获取单条记录的详细信息及关联的光学数据
-    
-    Args:
-        record_id: 记录ID
-        db: 数据库会话
-    
-    Returns:
-        包含光学数据数组的完整记录信息
-    """
+    """读取单条记录及关联波长/反射率序列"""
     db_record = db.query(FilmRecord).filter(FilmRecord.id == record_id).first()
     if not db_record:
         raise HTTPException(status_code=404, detail="记录不存在")
@@ -194,16 +159,7 @@ def read_record(record_id: int, db: Session = Depends(get_db)):
 
 @router.delete("/{record_id}")
 def delete_record(record_id: int, db: Session = Depends(get_db)):
-    """
-    删除薄膜分析记录（级联删除关联的光学数据）
-    
-    Args:
-        record_id: 记录ID
-        db: 数据库会话
-    
-    Returns:
-        删除操作结果
-    """
+    """删除记录（光学数据随外键级联删除）"""
     db_record = db.query(FilmRecord).filter(FilmRecord.id == record_id).first()
     if not db_record:
         raise HTTPException(status_code=404, detail="记录不存在")

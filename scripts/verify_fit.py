@@ -1,4 +1,5 @@
-import csv
+"""本地校验：内置样例光谱的厚度反演与 R²"""
+
 import sys
 from pathlib import Path
 
@@ -9,6 +10,8 @@ sys.path.insert(0, str(ROOT / "src"))
 
 from si.algorithms.models import InterferenceModels
 from si.algorithms.preprocess import SpectrumPreprocessor
+from si.utils.csv_spectrum import load_wavenumber_csv
+from si.utils.paths import SAMPLES_DIR
 
 CASES = [
     ("test_sic_15um.csv", "SIC", 15.0),
@@ -20,19 +23,12 @@ CASES = [
 
 
 def run_one(fname, mat, expect):
-    path = ROOT / fname
-    wl, ref = [], []
-    with open(path, newline="", encoding="utf-8") as f:
-        reader = csv.reader(f)
-        next(reader)
-        for row in reader:
-            wn = float(row[0])
-            rv = float(row[1])
-            wl.append(10000.0 / wn)
-            ref.append(rv)
+    path = SAMPLES_DIR / fname
+    wl, ref = load_wavenumber_csv(path)
+    sg_win = SpectrumPreprocessor.suggest_smooth_window(wl, ref)
     df = SpectrumPreprocessor.smooth_filter(
         pd.DataFrame({"wavelength": wl, "reflectance": ref}),
-        window=SpectrumPreprocessor.suggest_smooth_window(wl, ref),
+        window=sg_win,
     )
     ex = SpectrumPreprocessor.find_extremum(df, "ref_smooth")
     inv = InterferenceModels.run_inversion(

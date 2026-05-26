@@ -4,6 +4,13 @@ import json
 import sys
 import time
 import urllib.request
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent
+sys.path.insert(0, str(ROOT / "src"))
+
+from si.utils.csv_spectrum import load_wavenumber_csv
+from si.utils.paths import SAMPLES_DIR
 
 BASE = "http://127.0.0.1:8000"
 
@@ -31,20 +38,8 @@ def delete(path):
         return json.loads(resp.read().decode("utf-8"))
 
 
-def load_csv_sample(path):
-    import csv
-    wl, ref = [], []
-    with open(path, newline="", encoding="utf-8") as f:
-        reader = csv.reader(f)
-        next(reader, None)
-        for row in reader:
-            if len(row) < 2:
-                continue
-            wn = float(row[0])
-            r = float(row[1])
-            wl.append(10000.0 / wn)
-            ref.append(r / 100.0 if r > 2 else r)
-    return wl, ref
+def load_csv_sample(filename):
+    return load_wavenumber_csv(SAMPLES_DIR / filename)
 
 
 def test_health():
@@ -59,8 +54,8 @@ def test_materials():
     print("[OK] materials:", len(data["data"]))
 
 
-def test_calculate(sample_path):
-    wl, ref = load_csv_sample(sample_path)
+def test_calculate(sample_name):
+    wl, ref = load_csv_sample(sample_name)
     data = post_json("/api/calculate", {
         "wavelength": wl,
         "reflectance": ref,
@@ -69,7 +64,7 @@ def test_calculate(sample_path):
     })
     assert data["success"], data.get("error")
     t = data["result"]["thickness_um"]
-    print(f"[OK] calculate {sample_path}: thickness={t} um, R2={data['result']['r_squared']}")
+    print(f"[OK] calculate {sample_name}: thickness={t} um, R2={data['result']['r_squared']}")
     return data["result"]
 
 
@@ -79,9 +74,8 @@ def test_records(calc_result):
         "material_type": "SIC",
         "thickness_um": calc_result["thickness_um"],
         "r_squared": calc_result["r_squared"],
-        "multi_beam_level": calc_result["multi_beam_level"],
-        "theta_deg": 10.0,
-        "notes": "auto test",
+        "multi_beam_level": calc_result.get("multi_beam_level", ""),
+        "theta_deg": calc_result.get("theta_deg", 10.0),
         "optical_data": [
             {
                 "wavelength": calc_result["wavelength"][i],
@@ -96,13 +90,13 @@ def test_records(calc_result):
     rid = created["id"]
     print("[OK] create record id=", rid)
 
-    listing = get_json("/api/records/?search=TEST-AUTO")
-    assert listing["total"] >= 1
-    print("[OK] list records total=", listing["total"])
+    listed = get_json("/api/records/?search=TEST-AUTO")
+    assert listed["total"] >= 1
+    print("[OK] list records total=", listed["total"])
 
     detail = get_json(f"/api/records/{rid}")
     assert detail["film_code"] == "TEST-AUTO-001"
-    print("[OK] record detail")
+    print("[OK] get record detail")
 
     req = urllib.request.Request(BASE + f"/api/records/{rid}/report")
     with urllib.request.urlopen(req, timeout=30) as resp:

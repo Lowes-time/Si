@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 from scipy.signal import savgol_filter, find_peaks
 
+# 光谱预处理：SG/滑动平均平滑、极值提取、归一化
 class SpectrumPreprocessor:
     @staticmethod
     def suggest_smooth_window(wl_um, reflectance):

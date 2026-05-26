@@ -58,10 +58,14 @@ Si/
 │   │   └── seed.py           # 数据库初始化
 │   └── utils/
 │       └── pdf_generator.py  # fpdf2 报告生成
-├── test_api.py               # 接口联调脚本
-├── test_si_2um.csv           # 样例数据
-├── test_sic_15um.csv
-├── test_sic_30um.csv
+├── data/samples/             # 样例光谱（唯一源目录）
+│   └── test_*.csv
+├── frontend/public/samples/  # 与 data/samples 同步，供页面 /samples/ 加载
+├── scripts/
+│   ├── generate_samples.py   # 生成并同步样例
+│   ├── verify_fit.py         # 本地拟合校验
+│   └── list_source_for_softcopyright.py  # 软著源文件清单
+├── test_api.py               # 接口联调（读取 data/samples）
 ├── pyproject.toml
 └── requirements.txt
 ```
@@ -158,19 +162,40 @@ python test_api.py
 
 ---
 
-## 6. 软著代码文档提取建议
+## 6. 样例数据说明
 
-共约 60 页 × 50 行，推荐顺序：
+| 用途 | 路径 | 说明 |
+|------|------|------|
+| 页面「示例数据」按钮 | `frontend/public/samples/*.csv` | 浏览器通过 `/samples/...` 静态访问 |
+| 脚本 / 联调测试 | `data/samples/*.csv` | `verify_fit.py`、`test_api.py` 读取 |
+| 生成与同步 | `python scripts/generate_samples.py` | 同时写入上述两个目录，内容一致 |
 
-1. **前端交互**（约 20 页）：`App.vue` → `SpectrumChart.vue` → `CalculationPanel.vue`
-2. **后端 API**（约 15 页）：`main.py` → `calculation.py` → `records.py`
-3. **算法内核**（约 25 页）：`models.py` → `optical_constants.py` → `preprocess.py`
-
-复制到 Word 时删除空行，保证每页有效代码 ≥ 50 行。
+**不要**在 Si 根目录再放一份 CSV，避免双份数据不一致。
 
 ---
 
-## 7. 版本信息
+## 7. 软著源代码材料（登记办法摘要）
+
+依据《[计算机软件著作权登记办法](https://www.ncac.gov.cn/xxfb/flfg/bmgz/202410/P020241015604759788122.pdf)》第十条：
+
+1. **页数**：源程序前、后各连续 **30 页**（共 60 页）；总代码不足 60 页则提交全部。
+2. **行数**：每页有效代码 **≥ 50 行**（末页可例外）。
+3. **连续性**：不得跳页、断章取义；首页宜为程序入口（如 `main.py`、`main.js`）。
+4. **页眉**：Word 排版时左上角标注软件全称 **「基于多光束干涉校正的半导体外延层厚度光谱反演软件 V1.0」**，右上角连续页码。
+5. **注释**：中文简要说明模块与核心逻辑即可；注释行不宜超过每页 30%，避免“凑页数”。
+6. **独创性**：鉴别材料应体现膜厚反演、多光束判定、预处理等业务逻辑，而非仅框架模板代码。
+
+生成提取顺序与行数统计：
+
+```bash
+python scripts/list_source_for_softcopyright.py
+```
+
+推荐粘贴顺序：入口 → 前端主界面与图表 → 计算/预处理 API → `models.py` → `optical_constants.py` → 数据库与 PDF。
+
+---
+
+## 8. 版本信息
 
 - 版本：V1.0
 - Python：≥ 3.12

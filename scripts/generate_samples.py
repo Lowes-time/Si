@@ -10,6 +10,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
 from si.algorithms.models import InterferenceModels
+from si.utils.paths import FRONTEND_SAMPLES_DIR, SAMPLES_DIR
 
 THETA = 10.0
 N_PTS = 320
@@ -42,7 +43,7 @@ def write_csv(path, wn, ref):
 
 def main():
     np.random.seed(42)
-    out_dirs = [ROOT, ROOT / "frontend" / "public" / "samples"]
+    out_dirs = [SAMPLES_DIR, FRONTEND_SAMPLES_DIR]
     for d in out_dirs:
         d.mkdir(parents=True, exist_ok=True)
 

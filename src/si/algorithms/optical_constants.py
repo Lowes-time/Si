@@ -282,22 +282,7 @@ class OpticalConstants:
     
     @staticmethod
     def calc_complex_permittivity(wavenumber_cm, params):
-        """
-        Drude-Lorentz 复介电函数模型计算 (外延层)
-        
-        Args:
-            wavenumber_cm: 波数 (cm^-1)
-            params: 参数元组 (eps_inf, w_TO, G_TO, S_TO, w_p, G_p)
-                - eps_inf: 高频介电常数
-                - w_TO: TO声子频率 (cm^-1)
-                - G_TO: TO阻尼 (cm^-1)
-                - S_TO: TO振子强度
-                - w_p: 等离子体频率 (cm^-1)
-                - G_p: 等离子体阻尼 (cm^-1)
-        
-        Returns:
-            (n_real, n_imag, eps_complex): 实部、虚部、复折射率
-        """
+        """Drude-Lorentz 模型：由波数与振子参数求复折射率"""
         eps_inf, w_TO_cm, G_TO_cm, S_TO, w_p_cm, G_p_cm = params
         w = np.asarray(wavenumber_cm)
         
@@ -317,7 +302,7 @@ class OpticalConstants:
     
     @staticmethod
     def get_material_info(material: str) -> Dict:
-        """获取材料的基本信息"""
+        """返回材料中文名与带隙等摘要"""
         material = str(material).strip().upper()
         
         if material in OpticalConstants._material_params:
@@ -332,7 +317,7 @@ class OpticalConstants:
     
     @staticmethod
     def list_supported_materials() -> list:
-        """列出所有支持的材料"""
+        """材料库键名列表，供前端下拉与校验"""
         seen = set()
         materials = []
         for key, params in OpticalConstants._material_params.items():
