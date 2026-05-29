@@ -10,7 +10,7 @@
 
 | 模块 | 功能 |
 |------|------|
-| 用户登录 | 用户名密码验证，默认账号 user / 123456 |
+| 用户登录 | 用户名密码验证，默认账号 user / 123456；支持注册新账户（本地保存） |
 | 数据导入 | CSV/TXT/XLSX 上传，内置样例，手动粘贴 |
 | 预处理 | SG/MA 滤波、波长裁剪、自动最优区间、ALS 基线、SiC Reststrahlen 剔除 |
 | 厚度反演 | 双光束 / Airy 多光束自适应、FFT 初值、差分进化 + LM 精修 |
@@ -28,7 +28,7 @@ Si/
 │   │   ├── App.vue           # 主布局、流程状态、双视图切换
 │   │   ├── api/index.js      # HTTP 接口封装
 │   │   ├── main.js           # 入口
-│   │   ├── utils/auth.js     # 登录状态（sessionStorage）
+│   │   ├── utils/auth.js     # 登录与注册（sessionStorage + localStorage）
 │   │   └── components/
 │   │       ├── Login.vue            # 登录页
 │   │       ├── DataImport.vue       # 数据导入
@@ -149,6 +149,7 @@ npm install
 npm run dev
 # 浏览器 http://localhost:5173
 # 默认登录：用户名 user，密码 123456
+# 注册：登录页点击「注册账户」，填写用户名与密码后自动登录
 ```
 
 ### 构建
