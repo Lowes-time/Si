@@ -1,8 +1,6 @@
-<!--
-  主应用：流程编排与双视图（实时分析 / 历史记录）
--->
 <template>
-  <div class="app-container">
+  <Login v-if="!loggedIn" @login-success="onLoginSuccess" />
+  <div v-else class="app-container">
     <header class="app-header">
       <div class="header-left">
         <div class="logo-icon">
@@ -22,6 +20,10 @@
           <el-tab-pane label="实时分析" name="analysis" />
           <el-tab-pane label="历史记录" name="history" />
         </el-tabs>
+      </div>
+      <div class="header-actions">
+        <span class="user-label">{{ currentUser }}</span>
+        <el-button link type="primary" @click="handleLogout">退出</el-button>
       </div>
     </header>
     <div class="app-body">
@@ -106,7 +108,7 @@
         <a href="javascript:void(0)" @click="showAbout = true" class="footer-link">关于系统</a>
       </div>
       <div class="footer-copyright">
-        &copy; 2026 半导体外延层厚度分析系统
+        &copy; 2026 半导体薄膜厚度光学测量分析系统
       </div>
     </footer>
 
@@ -263,7 +265,9 @@ import CalculationPanel from "./components/CalculationPanel.vue";
 import ResultsLog from "./components/ResultsLog.vue";
 import SpectrumChart from "./components/SpectrumChart.vue";
 import DatabasePanel from "./components/DatabasePanel.vue";
+import Login from "./components/Login.vue";
 import { exportResult, saveRecord } from "./api/index.js";
+import { isLoggedIn, clearLogin } from "./utils/auth.js";
 import { ElMessage, ElMessageBox } from "element-plus";
 
 export default {
@@ -276,9 +280,12 @@ export default {
     ResultsLog,
     SpectrumChart,
     DatabasePanel,
+    Login,
   },
   data() {
     return {
+      loggedIn: isLoggedIn(),
+      currentUser: "user",
       showAbout: false,
       showHelp: false,
       helpActivePage: 1,
@@ -319,6 +326,21 @@ export default {
     },
   },
   methods: {
+    onLoginSuccess(name) {
+      this.loggedIn = true;
+      this.currentUser = name || "user";
+    },
+    handleLogout() {
+      clearLogin();
+      this.loggedIn = false;
+      this.currentUser = "user";
+      this.rawData = null;
+      this.processedData = null;
+      this.calcResult = null;
+      this.resultLog = [];
+      this.activeView = "analysis";
+      this.activePanels = ["import"];
+    },
     onChartRangeSelected(range) {
       this.chartRange = range;
       if (range) {
@@ -540,7 +562,8 @@ body { font-family: var(--font-family); background: var(--color-bg-1); color: va
 
 .chart-area { flex: 1; min-width: 0; padding: 16px; overflow: hidden; background: var(--color-bg-1); }
 
-.header-actions { display: flex; align-items: center; gap: 8px; margin-left: auto; }
+.header-actions { display: flex; align-items: center; gap: 8px; margin-left: auto; flex-shrink: 0; }
+.user-label { font-size: 13px; color: var(--color-text-2); }
 
 .about-content { text-align: center; padding: 20px; }
 .about-logo { width: 64px; height: 64px; background: linear-gradient(135deg, #165DFF 0%, #4080FF 100%); border-radius: 16px; display: flex; align-items: center; justify-content: center; margin: 0 auto 16px; color: white; }

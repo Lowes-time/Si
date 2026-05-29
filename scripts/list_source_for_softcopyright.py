@@ -16,6 +16,8 @@ from si.backend.config import SOFTWARE_FULL_NAME, APP_VERSION
 SOURCE_ORDER = [
     "src/si/main.py",
     "frontend/src/main.js",
+    "frontend/src/components/Login.vue",
+    "frontend/src/utils/auth.js",
     "frontend/src/App.vue",
     "frontend/src/components/DataImport.vue",
     "frontend/src/components/PreprocessPanel.vue",
